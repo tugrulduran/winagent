@@ -1,0 +1,24 @@
+# CMake build directories
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Build artifacts
+*.exe
+*.out
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+
+# IDE - CLion / JetBrains
+.idea/
+
+# Archives
+*.zip
+
+# Config (if contains sensitive data, uncomment below)
+# config.ini
