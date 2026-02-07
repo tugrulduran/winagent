@@ -25,8 +25,8 @@ void CPUMonitor::update() {
 }
 
 void CPUMonitor::display() const {
-    std::cout << "[CPU] Cekirdek Sayisi: " << coreCount << std::endl;
-    std::cout << "[CPU] Toplam Kullanim: %" << std::fixed << std::setprecision(2)
+    std::cout << "[ CPU ] Cekirdek Sayisi: " << coreCount << std::endl;
+    std::cout << "[ CPU ] Toplam Kullanim: %" << std::fixed << std::setprecision(2)
               << lastValue.load() << "   " << std::endl;
     // Sona boşluk ekledik ki ResetCursor sonrası eski karakter kalmasın
 }

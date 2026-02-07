@@ -30,10 +30,13 @@ public:
     void start() {
         if (!active) {
             active = true;
-            workerThread = std::thread(&BaseMonitor::run, this);
+            // Küçük bir gecikme nesnenin bellekte tam oturmasını sağlar
+            workerThread = std::thread([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                this->run();
+            });
         }
     }
-
     void stop() {
         active = false;
         if (workerThread.joinable()) {

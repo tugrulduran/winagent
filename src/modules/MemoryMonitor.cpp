@@ -19,7 +19,7 @@ void MemoryMonitor::update() {
 }
 
 void MemoryMonitor::display() const {
-    std::cout << "[RAM] Kullanım: %" << usagePercentage.load()
+    std::cout << "[ RAM ] Kullanım: %" << usagePercentage.load()
               << " (" << std::fixed << std::setprecision(2) << usedGB.load() << " GB / "
               << totalGB << " GB)" << std::endl;
 }

@@ -125,6 +125,14 @@ void AudioMonitor::update() {
 
         if (finalName.empty() || finalName[0] == L'@') finalName = L"System Sounds";
 
+        // Ignore list kontrolü
+        if (IsIgnored(finalName)) {
+            pVolumeControl->Release();
+            pSessionControl2->Release();
+            pSessionControl->Release();
+            continue;
+        }
+
         float vol = 0;
         BOOL mute = FALSE;
         pVolumeControl->GetMasterVolume(&vol);
@@ -164,12 +172,12 @@ void AudioMonitor::update() {
 void AudioMonitor::display() const {
     std::lock_guard<std::mutex> lock(dataMutex);
 
-    std::wcout << L"[VOL] --- MASTER VOLUME --- : %" << (int) (masterVolume * 100);
+    std::wcout << L"[ VOL ] --- MASTER VOLUME --- : %" << (int) (masterVolume * 100);
     if (masterMuted) std::wcout << L" [Muted]";
     std::wcout << std::endl;
 
     for (const auto &app: apps) {
-        std::wcout << L"[VOL] " << std::left << std::setw(25) << app.name.substr(0, 24)
+        std::wcout << L"[ VOL ] " << std::left << std::setw(25) << app.name.substr(0, 24)
                 << L"(" << app.pid << L") "
                 << L": %" << (int) (app.volume * 100) << std::endl;
     }

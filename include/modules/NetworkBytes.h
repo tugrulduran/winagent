@@ -1,9 +1,9 @@
 #ifndef NETWORKBYTES_H
 #define NETWORKBYTES_H
 
-#include "BaseMonitor.h"
 #include <winsock2.h>
 #include <windows.h>
+#include "BaseMonitor.h"
 #include <iphlpapi.h>
 #include <vector>
 #include <string>
