@@ -1,35 +1,37 @@
 #ifndef NETWORKBYTES_H
 #define NETWORKBYTES_H
 
-#include <winsock2.h>
-#include <windows.h>
 #include "BaseMonitor.h"
+#include <winsock2.h>
 #include <iphlpapi.h>
 #include <vector>
 #include <string>
 #include <map>
 #include <mutex>
 
+// Arayüz verilerini tutan yapı
 struct InterfaceData {
     std::wstring description;
-    uint64_t bytesIn;
-    uint64_t bytesOut;
-    double speedInKB;
-    double speedOutKB;
+    double speedInKB = 0.0;
+    double speedOutKB = 0.0;
 };
 
 class NetworkBytes : public BaseMonitor {
 private:
     std::vector<InterfaceData> interfaces;
-    // LUID (64-bit ID) bazlı trafik takibi
+    // LUID bazlı trafik takibi (Hız hesabı için önceki değerleri saklar)
     std::map<uint64_t, std::pair<uint64_t, uint64_t>> lastTrafficMap;
     mutable std::mutex dataMutex;
 
 public:
-    NetworkBytes(int interval);
+    NetworkBytes(int interval = 1000);
+    ~NetworkBytes() override;
+
+    void init() override;
     void update() override;
-    void display() const override;
-    std::vector<InterfaceData> getInterfaces() const;
+
+    // String yerine doğrudan vektör döner
+    std::vector<InterfaceData> getData() const;
 };
 
 #endif

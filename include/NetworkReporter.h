@@ -1,9 +1,6 @@
 #ifndef NETWORKREPORTER_H
 #define NETWORKREPORTER_H
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <thread>
@@ -11,20 +8,33 @@
 #include <vector>
 #include <string>
 
+// Modül başlıkları
+#include <functional>
+
 #include "modules/CPUMonitor.h"
 #include "modules/MemoryMonitor.h"
 #include "modules/NetworkBytes.h"
 #include "modules/AudioMonitor.h"
 #include "modules/MediaMonitor.h"
 
-// UDP üzerinden gönderilecek veri paketleri
 #pragma pack(push, 1)
 struct InterfacePacket {
     float inKB;
     float outKB;
 };
 
-// Ana Header Yapısı
+struct AudioPacket {
+    uint32_t pid;
+    wchar_t name[25];
+    float volume;
+};
+
+struct AudioDevicePacket {
+    uint8_t index;
+    wchar_t name[32];
+    uint8_t isDefault;
+};
+
 struct FullMonitorPacketExtended {
     uint32_t id;
     float cpu;
@@ -33,22 +43,23 @@ struct FullMonitorPacketExtended {
     uint8_t netCount;
     uint8_t audioCount;
     uint8_t hasMedia;
-    uint8_t deviceCount; // YENİ: Kaç tane hoparlör/kulaklık var?
-};
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-struct AudioDevicePacket {
-    uint8_t index;
-    wchar_t name[32];
-    uint8_t isDefault;
+    uint8_t deviceCount;
 };
 #pragma pack(pop)
 
 class NetworkReporter {
+public:
+    NetworkReporter(const std::string& ip, int port, int ms,
+                   CPUMonitor* c, MemoryMonitor* r, NetworkBytes* n, AudioMonitor* a, MediaMonitor* m);
+    ~NetworkReporter();
+    void start();
+    void stop();
+    // Log mesajlarını MainWindow'a göndermek için callback tanımı
+    using LogCallback = std::function<void(const std::string&)>;
+    void setLogCallback(LogCallback cb) { logCb = cb; }
 private:
-    SOCKET sock;        // Veri gönderim soketi
-    SOCKET cmdSock;     // Komut dinleme soketi (Kilitlenmeyi önlemek için member yapıldı)
+    SOCKET sock;
+    SOCKET cmdSock;
     sockaddr_in serverAddr;
     std::thread worker;
     std::thread listenerThread;
@@ -57,6 +68,7 @@ private:
     int intervalMs;
     uint32_t currentId = 0;
 
+    // Pointerlarımızı tutuyoruz
     CPUMonitor* cpuPtr;
     MemoryMonitor* ramPtr;
     NetworkBytes* netPtr;
@@ -67,12 +79,8 @@ private:
     void sendData();
     void listenForCommands();
 
-public:
-    NetworkReporter(const std::string& ip, int port, int ms,
-                   CPUMonitor* c, MemoryMonitor* r, NetworkBytes* n, AudioMonitor* a, MediaMonitor* m);
-    ~NetworkReporter();
-    void start();
-    void stop();
+    LogCallback logCb;
+    void log(const std::string& msg) { if(logCb) logCb(msg); }
 };
 
 #endif

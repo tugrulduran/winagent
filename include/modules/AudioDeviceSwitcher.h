@@ -11,7 +11,8 @@ struct AudioDevice {
 
 class AudioDeviceSwitcher {
 public:
+    // Statik metodlar kalsın, çünkü her an veri toplamazlar, sadece çağrıldığında çalışırlar.
     static std::vector<AudioDevice> listDevices();
-    static bool setDefaultByIndex(int index);
     static bool setDefaultById(const std::wstring& deviceId);
+    static bool setDefaultByIndex(int index);
 };

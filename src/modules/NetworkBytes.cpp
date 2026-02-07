@@ -14,10 +14,17 @@
 #include <iostream>
 #include <vector>
 #include <mutex>
-#include <algorithm> // find için
 #include "modules/NetworkBytes.h"
+#include <algorithm>
 
-NetworkBytes::NetworkBytes(int interval) : BaseMonitor(interval) {
+NetworkBytes::NetworkBytes(int interval) : BaseMonitor(interval) {}
+
+NetworkBytes::~NetworkBytes() {
+    stop();
+}
+
+void NetworkBytes::init() {
+    // İlk çalıştırmada fark oluşması için değerleri bir kez oku
     update();
 }
 
@@ -25,28 +32,21 @@ void NetworkBytes::update() {
     PMIB_IF_TABLE2 table = nullptr;
 
     if (GetIfTable2(&table) == NO_ERROR) {
-        std::lock_guard<std::mutex> lock(dataMutex);
         std::vector<InterfaceData> currentInterfaces;
+
+        // Hız hesabı için geçen süreyi saniyeye çevir
+        double seconds = intervalMs / 1000.0;
 
         for (ULONG i = 0; i < table->NumEntries; i++) {
             MIB_IF_ROW2& row = table->Table[i];
 
-            // --- GARANTİ FİLTRELEME ---
-            // ConnectorPresent hata verdiği için en temel fiziksel özellikleri kullanıyoruz.
-
-            // 1. Tip: Ethernet veya Wi-Fi
+            // --- FİLTRELEME MANTIĞI ---
             bool isCorrectType = (row.Type == IF_TYPE_ETHERNET_CSMACD || row.Type == IF_TYPE_IEEE80211);
-
-            // 2. Fiziksel Adres: Gerçek kartların mutlaka bir MAC adresi olur.
             bool hasMac = (row.PhysicalAddressLength > 0);
 
-            // 3. Yazılımsal Tanım Kontrolü (WFP, QoS vb. temizlemek için en etkili yol)
             std::wstring desc = row.Description;
-            auto toLower = [](std::wstring s) {
-                std::transform(s.begin(), s.end(), s.begin(), ::towlower);
-                return s;
-            };
-            std::wstring lowDesc = toLower(desc);
+            std::wstring lowDesc = desc;
+            std::transform(lowDesc.begin(), lowDesc.end(), lowDesc.begin(), ::towlower);
 
             bool isVirtual = (lowDesc.find(L"filter") != std::wstring::npos ||
                               lowDesc.find(L"scheduler") != std::wstring::npos ||
@@ -54,42 +54,39 @@ void NetworkBytes::update() {
                               lowDesc.find(L"native") != std::wstring::npos ||
                               lowDesc.find(L"npcap") != std::wstring::npos);
 
-            // Eğer tip doğruysa, MAC varsa ve açıklama "kirli" değilse alıyoruz.
             if (isCorrectType && hasMac && !isVirtual) {
                 uint64_t luid = row.InterfaceLuid.Value;
                 double speedIn = 0, speedOut = 0;
 
+                // Daha önce bu kartı gördüysek hız hesabı yap
                 if (lastTrafficMap.count(luid)) {
                     auto& prev = lastTrafficMap[luid];
-                    speedIn = (row.InOctets - prev.first) / 1024.0 / (intervalMs / 1000.0);
-                    speedOut = (row.OutOctets - prev.second) / 1024.0 / (intervalMs / 1000.0);
+                    // (Şu anki byte - Önceki byte) / 1024 / saniye = KB/s
+                    speedIn = (row.InOctets - prev.first) / 1024.0 / seconds;
+                    speedOut = (row.OutOctets - prev.second) / 1024.0 / seconds;
                 }
 
+                // Değerleri bir sonraki update için sakla
                 lastTrafficMap[luid] = std::make_pair((uint64_t)row.InOctets, (uint64_t)row.OutOctets);
 
-                InterfaceData data;
-                data.description = desc;
-                data.speedInKB = (speedIn < 0) ? 0 : speedIn;
-                data.speedOutKB = (speedOut < 0) ? 0 : speedOut;
+                InterfaceData iface;
+                iface.description = desc;
+                iface.speedInKB = (speedIn < 0) ? 0 : speedIn;
+                iface.speedOutKB = (speedOut < 0) ? 0 : speedOut;
 
-                currentInterfaces.push_back(data);
+                currentInterfaces.push_back(iface);
             }
         }
-        interfaces = currentInterfaces;
+
+        // Thread-safe atama
+        std::lock_guard<std::mutex> lock(dataMutex);
+        interfaces = std::move(currentInterfaces);
+
         if (table) FreeMibTable(table);
     }
 }
 
-void NetworkBytes::display() const {
-    std::lock_guard<std::mutex> lock(dataMutex);
-    for (const auto& iface : interfaces) {
-        std::wcout << L"[NET] " << iface.description
-                   << L" -> In: " << iface.speedInKB << L" KB/s"
-                   << L" | Out: " << iface.speedOutKB << L" KB/s   " << std::endl;
-    }
-}
-
-std::vector<InterfaceData> NetworkBytes::getInterfaces() const {
+std::vector<InterfaceData> NetworkBytes::getData() const {
     std::lock_guard<std::mutex> lock(dataMutex);
     return interfaces;
 }

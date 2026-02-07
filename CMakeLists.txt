@@ -2,22 +2,18 @@ cmake_minimum_required(VERSION 3.28)
 project(WinAgent)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_AUTOMOC ON) # Qt'nin Meta-Object Compiler'ını açar
+set(CMAKE_AUTOUIC ON) # .ui dosyaları kullanacaksan açar
+set(CMAKE_AUTORCC ON) # .qrc (kaynak) dosyaları için açar
 
-# 1. MSVC İÇİN STATİK BAĞLAMA (KRİTİK)
-# Bu satır, C++ kütüphanelerini .exe'nin içine gömer.
-# Böylece karşı bilgisayarda Visual C++ kütüphanelerinin kurulu olmasına gerek kalmaz.
-if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
-
-# 2. MINGW kullanırsan diye senin orijinal bayrakların
-if (MINGW)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
-endif ()
+# 1. Qt Paketlerini Bul (Widgets ve Network gerekiyor)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 include_directories(include)
 
-add_executable(WinAgent main.cpp
+# 3. Kaynak Dosyaları
+add_executable(WinAgent
+        main.cpp
         include/BaseMonitor.h
         include/modules/CPUMonitor.h
         src/modules/CPUMonitor.cpp
@@ -32,13 +28,17 @@ add_executable(WinAgent main.cpp
         src/modules/AudioMonitor.cpp
         include/modules/MediaMonitor.h
         src/modules/MediaMonitor.cpp
-        include/modules/AudioDeviceMonitor.h
-        src/modules/AudioDeviceMonitor.cpp
         include/modules/AudioDeviceSwitcher.h
-        src/modules/AudioDeviceSwitcher.cpp)
+        src/modules/AudioDeviceSwitcher.cpp
+        include/MainWindow.h
+        src/MainWindow.cpp
+        include/modules/ProcessMonitor.h
+)
 
-# Windows sistem kütüphaneleri (Zaten her Windows'ta vardır, sorun çıkarmazlar)
+# 4. Kütüphane Bağlantıları (Qt kütüphanelerini ekledik)
 target_link_libraries(WinAgent PRIVATE
+        Qt6::Widgets
+        Qt6::Network
         psapi
         pdh
         ws2_32
@@ -53,5 +53,8 @@ target_link_libraries(WinAgent PRIVATE
         uuid
 )
 
-# Winsock çakışmalarını önlemek için global tanım
+# 5. Windows Uygulama Tipi
+# Eğer uygulamanın arkada bir konsol penceresi açmasını İSTEMİYORSAN:
+# set_target_properties(WinAgent PROPERTIES WIN32_EXECUTABLE TRUE)
+
 add_compile_definitions(WIN32_LEAN_AND_MEAN)

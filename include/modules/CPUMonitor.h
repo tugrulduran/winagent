@@ -4,24 +4,32 @@
 #include "BaseMonitor.h"
 #include <windows.h>
 #include <pdh.h>
+#include <mutex>
+#include <string>
+
+// CPU Modülüne özel veri yapısı
+struct CPUData {
+    double load = 0.0;
+    int cores = 0;
+    std::wstring cpuName = L"";
+};
 
 class CPUMonitor : public BaseMonitor {
 private:
-    PDH_HQUERY cpuQuery;
-    PDH_HCOUNTER cpuTotal;
-    std::atomic<double> lastValue{0.0};
-    int coreCount = 0; // Bir kez okunacak
+    PDH_HQUERY cpuQuery = nullptr;
+    PDH_HCOUNTER cpuTotal = nullptr;
+    CPUData data;
+    mutable std::mutex dataMutex; // getData const olduğu için mutable
 
 public:
-    CPUMonitor(int interval);
-
+    CPUMonitor(int interval = 1000);
     ~CPUMonitor();
 
+    void init() override;
     void update() override;
 
-    void display() const override;
-
-    double getLastValue() const { return lastValue.load(); }
+    // String değil, doğrudan struct döner
+    CPUData getData() const;
 };
 
 #endif

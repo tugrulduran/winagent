@@ -1,5 +1,4 @@
 #include "modules/AudioDeviceSwitcher.h"
-
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
@@ -9,9 +8,9 @@
 #pragma comment(lib, "ole32.lib")
 
 // ============================================================
-// IPolicyConfig (doğru vtable sırası)
+// IPolicyConfig - Undocumented Windows Interface
+// BU BÖLÜMÜN SIRALAMASI KRİTİKTİR, DEĞİŞTİRMEYİN.
 // ============================================================
-
 interface IPolicyConfig : public IUnknown {
 public:
     virtual HRESULT GetMixFormat(PCWSTR, WAVEFORMATEX**) = 0;
@@ -29,13 +28,12 @@ public:
 };
 
 static const CLSID CLSID_PolicyConfigClient =
-{ 0x870af99c, 0x171d, 0x4f9e,{0xaf,0x0d,0xe6,0x3d,0xf4,0x0c,0x2b,0xc9} };
+    { 0x870af99c, 0x171d, 0x4f9e,{0xaf,0x0d,0xe6,0x3d,0xf4,0x0c,0x2b,0xc9} };
 
 static const IID IID_IPolicyConfig =
-{ 0xf8679f50, 0x850a, 0x41cf,{0x9c,0x72,0x43,0x0f,0x29,0x02,0x90,0xc8} };
+    { 0xf8679f50, 0x850a, 0x41cf,{0x9c,0x72,0x43,0x0f,0x29,0x02,0x90,0xc8} };
 
-// ============================================================
-
+// COM Yönetimi için Helper
 class ScopedCOM {
 public:
     ScopedCOM() { initialized = SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)); }
@@ -45,30 +43,20 @@ private:
 };
 
 // ============================================================
-// DEVICE LISTING
+// Cihaz Listeleme
 // ============================================================
-
-std::vector<AudioDevice> AudioDeviceSwitcher::listDevices()
-{
+std::vector<AudioDevice> AudioDeviceSwitcher::listDevices() {
     std::vector<AudioDevice> devices;
     ScopedCOM com;
 
     IMMDeviceEnumerator* enumerator = nullptr;
-    HRESULT hr = CoCreateInstance(
-        __uuidof(MMDeviceEnumerator),
-        nullptr,
-        CLSCTX_ALL,
-        __uuidof(IMMDeviceEnumerator),
-        (void**)&enumerator
-    );
-    if (FAILED(hr))
-        return devices;
+    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+    if (FAILED(hr)) return devices;
 
     IMMDevice* defaultDevice = nullptr;
     LPWSTR defaultId = nullptr;
     enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &defaultDevice);
-    if (defaultDevice)
-        defaultDevice->GetId(&defaultId);
+    if (defaultDevice) defaultDevice->GetId(&defaultId);
 
     IMMDeviceCollection* collection = nullptr;
     enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection);
@@ -84,26 +72,23 @@ std::vector<AudioDevice> AudioDeviceSwitcher::listDevices()
 
     for (UINT i = 0; i < count; ++i) {
         IMMDevice* device = nullptr;
-        if (FAILED(collection->Item(i, &device)))
-            continue;
+        if (FAILED(collection->Item(i, &device))) continue;
 
         IPropertyStore* props = nullptr;
         device->OpenPropertyStore(STGM_READ, &props);
 
         PROPVARIANT name;
         PropVariantInit(&name);
-        if (props)
-            props->GetValue(PKEY_Device_FriendlyName, &name);
+        if (props) props->GetValue(PKEY_Device_FriendlyName, &name);
 
         LPWSTR id = nullptr;
         device->GetId(&id);
 
         AudioDevice d;
         d.index = (int)i;
-        d.name = name.pwszVal ? name.pwszVal : L"Unknown";
+        d.name = name.pwszVal ? name.pwszVal : L"Unknown Device";
         d.deviceId = id ? id : L"";
         d.isDefault = (defaultId && id && wcscmp(defaultId, id) == 0);
-
         devices.push_back(d);
 
         if (id) CoTaskMemFree(id);
@@ -116,33 +101,20 @@ std::vector<AudioDevice> AudioDeviceSwitcher::listDevices()
     if (defaultDevice) defaultDevice->Release();
     collection->Release();
     enumerator->Release();
-
     return devices;
 }
 
 // ============================================================
-// SET DEFAULT DEVICE
+// Varsayılan Yapma (Action)
 // ============================================================
-
-bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId)
-{
+bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId) {
     ScopedCOM com;
-
     IPolicyConfig* policy = nullptr;
-    HRESULT hr = CoCreateInstance(
-        CLSID_PolicyConfigClient,
-        nullptr,
-        CLSCTX_INPROC_SERVER,
-        IID_IPolicyConfig,
-        (void**)&policy
-    );
 
-    if (FAILED(hr)) {
-        std::wcerr << L"[ERROR] PolicyConfig create failed: 0x"
-                   << std::hex << hr << std::endl;
-        return false;
-    }
+    HRESULT hr = CoCreateInstance(CLSID_PolicyConfigClient, nullptr, CLSCTX_INPROC_SERVER, IID_IPolicyConfig, (void**)&policy);
+    if (FAILED(hr)) return false;
 
+    // eConsole, eMultimedia ve eCommunications rollerinin tamamını set ediyoruz
     policy->SetDefaultEndpoint(deviceId.c_str(), eConsole);
     policy->SetDefaultEndpoint(deviceId.c_str(), eMultimedia);
     policy->SetDefaultEndpoint(deviceId.c_str(), eCommunications);
@@ -151,11 +123,8 @@ bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId)
     return true;
 }
 
-bool AudioDeviceSwitcher::setDefaultByIndex(int index)
-{
+bool AudioDeviceSwitcher::setDefaultByIndex(int index) {
     auto devices = listDevices();
-    if (index < 0 || index >= (int)devices.size())
-        return false;
-
+    if (index < 0 || index >= (int)devices.size()) return false;
     return setDefaultById(devices[index].deviceId);
 }

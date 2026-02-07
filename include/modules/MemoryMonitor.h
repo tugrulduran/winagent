@@ -3,22 +3,31 @@
 
 #include "BaseMonitor.h"
 #include <windows.h>
+#include <mutex>
+
+// RAM verilerini ham (raw) halde tutan struct
+struct MemoryData {
+    double totalGB = 0.0;
+    double usedGB = 0.0;
+    double freeGB = 0.0;
+    int usagePercentage = 0;
+};
 
 class MemoryMonitor : public BaseMonitor {
 private:
-    std::atomic<int> usagePercentage{0};
-    std::atomic<double> usedGB{0.0};
-    double totalGB = 0.0;
+    MemoryData data;
+    mutable std::mutex dataMutex; // Const metod içinde kilit kullanabilmek için mutable
 
 public:
-    MemoryMonitor(int interval);
+    MemoryMonitor(int interval = 1000);
+    ~MemoryMonitor() override;
 
+    // BaseMonitor arayüzü
+    void init() override;
     void update() override;
 
-    void display() const override;
-
-    double getUsedGB() const { return usedGB.load(); }
-    uint8_t getPercent() const { return static_cast<uint8_t>(usagePercentage.load()); }
+    // Ham veriyi dönen getter
+    MemoryData getData() const;
 };
 
 #endif

@@ -11,14 +11,7 @@
 #include <mutex>
 #include <set>
 
-#pragma pack(push, 1) // Bellek hizalamasını kapat (Kritik!)
-struct AudioPacket {
-    uint32_t pid;
-    wchar_t name[25]; // 25 karakter * 2 byte = 50 byte
-    float volume;
-};
-#pragma pack(pop)
-
+// Her bir uygulama için veri yapısı
 struct AppAudioData {
     uint32_t pid;
     std::wstring name;
@@ -26,36 +19,37 @@ struct AppAudioData {
     bool isMuted;
 };
 
-class AudioMonitor : public BaseMonitor {
-private:
-    std::vector<AppAudioData> apps;
+// MainWindow'un tek seferde alacağı tüm ses tablosu
+struct AudioSnapshot {
     float masterVolume = 0.0f;
     bool masterMuted = false;
+    std::vector<AppAudioData> apps;
+};
+
+class AudioMonitor : public BaseMonitor {
+private:
+    AudioSnapshot currentSnapshot;
     mutable std::mutex dataMutex;
 
-    // Engellenecek uygulama isimleri listesi
     std::set<std::wstring> ignoreList = {
-        L"Armoury Crate Service",
-        L"ArmouryCrate.UserSessionHelper",
-        L"ASUS Optimization",
-        L"System" // Windows sistem seslerini de istersen buraya ekleyebilirsin
+        L"Armoury Crate Service", L"ArmouryCrate.UserSessionHelper",
+        L"ASUS Optimization", L"System"
     };
 
     std::wstring GetFriendlyName(const std::wstring& filePath);
     bool IsIgnored(const std::wstring& name);
 
 public:
-    AudioMonitor(int interval);
-    ~AudioMonitor();
+    AudioMonitor(int interval = 1000);
+    ~AudioMonitor() override;
+
+    void init() override;
     void update() override;
-    void display() const override;
 
-    // EKSİK OLAN METOT:
-    std::vector<AppAudioData> getApps() const {
-        std::lock_guard<std::mutex> lock(dataMutex);
-        return apps;
-    }
+    // Ham veriyi dönen getter
+    AudioSnapshot getData() const;
 
+    // Ses kontrol metodu (Qt butonları için)
     void setVolumeByPID(uint32_t targetPid, float newVolume);
 };
 

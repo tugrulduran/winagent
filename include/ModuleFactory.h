@@ -1,20 +1,52 @@
+#ifndef MODULEFACTORY_H
+#define MODULEFACTORY_H
+
 #include <memory>
+#include <vector>
+#include "BaseMonitor.h"
 #include "modules/CPUMonitor.h"
-#include "modules/MediaMonitor.h"
 #include "modules/MemoryMonitor.h"
-// #include "modules/DiskMonitor.h"
+#include "modules/MediaMonitor.h"
+#include "modules/NetworkBytes.h"
+#include "modules/AudioMonitor.h"
+#include "modules/ProcessMonitor.h" // <--- YENİ EKLEME
 
-enum class ModuleType { CPU, RAM, DISK, MEDIA };
+// PROCESS tipini ekledik
+enum class ModuleType { CPU, RAM, MEDIA, NETWORK, AUDIO, PROCESS };
 
-std::unique_ptr<BaseMonitor> create_module(ModuleType type, int interval) {
-    switch (type) {
-        case ModuleType::CPU:
-            return std::make_unique<CPUMonitor>(interval);
-        case ModuleType::RAM:
-            return std::make_unique<MemoryMonitor>(interval);
-        case ModuleType::MEDIA:
-            return std::make_unique<MediaMonitor>(interval);
-        default:
-            return nullptr;
+class ModuleFactory {
+public:
+    static std::unique_ptr<BaseMonitor> create_module(ModuleType type) {
+        switch (type) {
+            case ModuleType::CPU:
+                return std::make_unique<CPUMonitor>(1000);
+            case ModuleType::RAM:
+                return std::make_unique<MemoryMonitor>(10000);
+            case ModuleType::MEDIA:
+                return std::make_unique<MediaMonitor>(1000);
+            case ModuleType::NETWORK:
+                return std::make_unique<NetworkBytes>(1000);
+            case ModuleType::AUDIO:
+                return std::make_unique<AudioMonitor>(1000);
+            case ModuleType::PROCESS: // <--- YENİ EKLEME
+                return std::make_unique<ProcessMonitor>(5000);
+            default:
+                return nullptr;
+        }
     }
-}
+
+    static std::vector<std::unique_ptr<BaseMonitor>> createAll() {
+        std::vector<std::unique_ptr<BaseMonitor>> monitors;
+
+        monitors.push_back(create_module(ModuleType::CPU));
+        monitors.push_back(create_module(ModuleType::RAM));
+        monitors.push_back(create_module(ModuleType::MEDIA));
+        monitors.push_back(create_module(ModuleType::NETWORK));
+        monitors.push_back(create_module(ModuleType::AUDIO));
+        monitors.push_back(create_module(ModuleType::PROCESS));
+
+        return monitors;
+    }
+};
+
+#endif

@@ -1,32 +1,39 @@
 #include "modules/CPUMonitor.h"
-#include <iomanip>
 
-CPUMonitor::CPUMonitor(int interval) : BaseMonitor(interval) {
-    // 1. Statik Bilgi: Çekirdek Sayısını Al
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    coreCount = sysInfo.dwNumberOfProcessors;
-
-    // 2. Dinamik Bilgi: PDH Sayaçlarını Hazırla
-    PdhOpenQuery(NULL, NULL, &cpuQuery);
-    PdhAddEnglishCounter(cpuQuery, "\\Processor(_Total)\\% Processor Time", NULL, &cpuTotal);
-    PdhCollectQueryData(cpuQuery);
-}
+CPUMonitor::CPUMonitor(int interval) : BaseMonitor(interval) {}
 
 CPUMonitor::~CPUMonitor() {
-    PdhCloseQuery(cpuQuery);
+    stop();
+    if (cpuQuery) {
+        PdhCloseQuery(cpuQuery);
+    }
+}
+
+void CPUMonitor::init() {
+    // 1. Çekirdek Sayısı
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    data.cores = sysInfo.dwNumberOfProcessors;
+
+    // 2. PDH Sorgusu Hazırlığı
+    PdhOpenQuery(NULL, NULL, &cpuQuery);
+    // Not: PdhAddEnglishCounter kullanmak dil bağımsızlığı için kritiktir
+    PdhAddEnglishCounter(cpuQuery, L"\\Processor(_Total)\\% Processor Time", NULL, &cpuTotal);
+    PdhCollectQueryData(cpuQuery);
 }
 
 void CPUMonitor::update() {
     PDH_FMT_COUNTERVALUE counterVal;
     PdhCollectQueryData(cpuQuery);
     PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal);
-    lastValue = counterVal.doubleValue;
+
+    // Thread-safe yazma
+    std::lock_guard<std::mutex> lock(dataMutex);
+    data.load = counterVal.doubleValue;
 }
 
-void CPUMonitor::display() const {
-    std::cout << "[ CPU ] Cekirdek Sayisi: " << coreCount << std::endl;
-    std::cout << "[ CPU ] Toplam Kullanim: %" << std::fixed << std::setprecision(2)
-              << lastValue.load() << "   " << std::endl;
-    // Sona boşluk ekledik ki ResetCursor sonrası eski karakter kalmasın
+CPUData CPUMonitor::getData() const {
+    // Thread-safe okuma
+    std::lock_guard<std::mutex> lock(dataMutex);
+    return data;
 }
