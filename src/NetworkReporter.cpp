@@ -80,19 +80,19 @@ void NetworkReporter::listenForCommands() {
                     else if (cmdId == 2) cmdName = "NEXT";
                     else if (cmdId == 3) cmdName = "PREV";
 
-                    log("[REPORTER] Medya Komutu Alındı: " + cmdName);
+                    log("[REPORTER] Media Command Received: " + cmdName);
                     if (mediaPtr) mediaPtr->sendMediaCommand(cmdId);
                 }
                 else if (targetPid == 0xFFFFFFFE) {
-                    log("[REPORTER] Ses Aygıtı Değiştirme: Index " + std::to_string((int)dataVal));
+                    log("[REPORTER] Audio Device Switching: Index " + std::to_string((int)dataVal));
                     AudioDeviceSwitcher::setDefaultByIndex((int)dataVal);
                 }
                 else {
-                    log("[REPORTER] Ses Ayarı - PID: " + std::to_string(targetPid) + " Seviye: %" + std::to_string((int)(dataVal * 100)));
+                    log("[REPORTER] Audio Adjustment - PID: " + std::to_string(targetPid) + " Level: %" + std::to_string((int)(dataVal * 100)));
                     if (audioPtr) audioPtr->setVolumeByPID(targetPid, dataVal);
                 }
             } else {
-                log("[REPORTER] Geçersiz paket boyutu: " + std::to_string(bytesReceived) + " byte");
+                log("[REPORTER] Invalid packet size: " + std::to_string(bytesReceived) + " byte");
             }
         }
     }

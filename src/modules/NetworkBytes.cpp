@@ -2,11 +2,11 @@
 #define UNICODE
 #endif
 
-// Windows sürümünü en tepeye zorla
+// Force Windows version to the top
 #ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
 #endif
-#define _WIN32_WINNT 0x0600 // Vista+ desteği
+#define _WIN32_WINNT 0x0600 // Vista+ support
 
 #include <winsock2.h>
 #include <ws2tcpip.h>

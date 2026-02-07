@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), isServerRunning(f
 
     reporter->start();
 
-    debugLog->appendPlainText(">>> WinAgent Engine & Reporter Başlatıldı.");
+    debugLog->appendPlainText(">>> WinAgent Engine & Reporter Started.");
 
     // Timer that refreshes dashboard labels by pulling latest data from monitors.
     cycleTimer = new QTimer(this);
@@ -67,23 +67,23 @@ void MainWindow::setupUI() {
     QVBoxLayout *leftLayout = new QVBoxLayout();
 
     // Dashboard group (system status summary)
-    QGroupBox *dashboardGroup = new QGroupBox("Sistem Durumu");
+    QGroupBox *dashboardGroup = new QGroupBox("System Status");
     dashboardGroup->setStyleSheet("QGroupBox { font-weight: bold; color: #55aaff; border: 1px solid #333; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }");
     QVBoxLayout *dashLayout = new QVBoxLayout(dashboardGroup);
 
     QString labelStyle = "font-size: 14pt; font-weight: bold; color: #ffffff; padding: 5px;";
     lblCpu = new QLabel("CPU: %0.0"); lblCpu->setStyleSheet(labelStyle);
     lblRam = new QLabel("RAM: 0.0 GB"); lblRam->setStyleSheet(labelStyle);
-    lblNet = new QLabel("Ağ: Hazır"); lblNet->setStyleSheet("font-size: 11pt; color: #aaa;");
-    lblMedia = new QLabel("Medya: Boşta"); lblMedia->setStyleSheet("font-size: 11pt; color: #55aaff;");
-    lblAudioApps = new QLabel("Ses Kanalları: -"); lblAudioApps->setStyleSheet("font-size: 10pt; color: #888;");
+    lblNet = new QLabel("Network: Ready"); lblNet->setStyleSheet("font-size: 11pt; color: #aaa;");
+    lblMedia = new QLabel("Media: Idle"); lblMedia->setStyleSheet("font-size: 11pt; color: #55aaff;");
+    lblAudioApps = new QLabel("Audio Channels: -"); lblAudioApps->setStyleSheet("font-size: 10pt; color: #888;");
 
     // Foreground app display (icon + app name)
     lblAppIcon = new QLabel();
     lblAppIcon->setFixedSize(64, 64);
     lblAppIcon->setAlignment(Qt::AlignCenter);
 
-    lblAppName = new QLabel("Aktif Uygulama: -");
+    lblAppName = new QLabel("Active Application: -");
     lblAppName->setStyleSheet("font-size: 10pt; color: #00ff00; font-weight: bold;");
 
     dashLayout->addWidget(lblAppIcon);
@@ -103,7 +103,7 @@ void MainWindow::setupUI() {
     debugLog->setStyleSheet("background-color: #1e1e1e; color: #00ff00; font-family: 'Consolas'; font-size: 9pt;");
 
     leftLayout->addWidget(dashboardGroup, 2);
-    leftLayout->addWidget(new QLabel("Sistem Logları:"), 0);
+    leftLayout->addWidget(new QLabel("System Logs:"), 0);
     leftLayout->addWidget(debugLog, 1);
 
     mainLayout->addLayout(leftLayout, 3);
@@ -116,16 +116,16 @@ void MainWindow::setupUI() {
     statusDot = new QLabel();
     statusDot->setFixedSize(12, 12);
     statusDot->setStyleSheet("background-color: red; border-radius: 6px;");
-    btnServer = new QPushButton("UDP Server Başlat");
+    btnServer = new QPushButton("Start UDP Server");
     btnServer->setStyleSheet(btnStyle);
     serverStatusLayout->addWidget(statusDot);
     serverStatusLayout->addWidget(btnServer);
     buttonLayout->addLayout(serverStatusLayout);
 
-    QPushButton *btnRefresh = new QPushButton("Manuel Tetikle");
-    QPushButton *btnDevices = new QPushButton("Ses Cihazlarını Listele");
-    QPushButton *btnClear = new QPushButton("Logları Temizle");
-    QPushButton *btnExit = new QPushButton("Kapat");
+    QPushButton *btnRefresh = new QPushButton("Manual Trigger");
+    QPushButton *btnDevices = new QPushButton("List Audio Devices");
+    QPushButton *btnClear = new QPushButton("Clear Logs");
+    QPushButton *btnExit = new QPushButton("Close");
 
     btnRefresh->setStyleSheet(btnStyle);
     btnDevices->setStyleSheet(btnStyle);
@@ -153,7 +153,7 @@ void MainWindow::setupUI() {
     // Lists audio output devices in the debug log.
     connect(btnDevices, &QPushButton::clicked, this, [this](){
         auto devices = AudioDeviceSwitcher::listDevices();
-        debugLog->appendHtml("<br><b style='color: #55aaff;'>--- AKTİF SES CİHAZLARI ---</b>");
+        debugLog->appendHtml("<br><b style='color: #55aaff;'>--- ACTIVE AUDIO DEVICES ---</b>");
         for(const auto& d : devices) {
             debugLog->appendPlainText(QString("%1 [%2] %3").arg(d.isDefault ? ">>" : "  ").arg(d.index).arg(QString::fromWCharArray(d.name.c_str())));
         }
@@ -171,7 +171,7 @@ void MainWindow::cleanupPort(int port) {
 
     QProcess::startDetached(command, args);
 
-    debugLog->appendHtml(QString("<i style='color: orange;'>[SYSTEM] Port %1 temizleniyor...</i>").arg(port));
+    debugLog->appendHtml(QString("<i style='color: orange;'>[SYSTEM] Cleaning port %1...</i>").arg(port));
 }
 
 void MainWindow::toggleServer() {
@@ -192,7 +192,7 @@ void MainWindow::toggleServer() {
             // Start Node. The script is referenced by filename because working directory is set.
             serverProcess->start("node.exe", QStringList() << "agentserver.js");
 
-            debugLog->appendHtml("<i style='color: gray;'>[DEBUG] Sunucu başlatıldı.</i>");
+            debugLog->appendHtml("<i style='color: gray;'>[DEBUG] Server started.</i>");
         });
     } else {
         // Stop the process, then free the port again just in case.
@@ -208,7 +208,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     // - free UDP port
     // - stop reporter and all monitor threads
 
-    debugLog->appendPlainText(">>> Uygulama kapatılıyor, temizlik yapılıyor...");
+    debugLog->appendPlainText(">>> Application closing, cleaning up...");
 
     if (serverProcess && serverProcess->state() != QProcess::NotRunning) {
         serverProcess->kill();
@@ -226,17 +226,17 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 void MainWindow::handleServerStarted() {
     // Update UI when Node.js server process starts.
     isServerRunning = true;
-    btnServer->setText("UDP Server Durdur");
+    btnServer->setText("Stop UDP Server");
     statusDot->setStyleSheet("background-color: #00ff00; border-radius: 6px;");
-    debugLog->appendHtml("<b style='color: #00ff00;'>[SERVER] Node.js UDP Server Aktif.</b>");
+    debugLog->appendHtml("<b style='color: #00ff00;'>[SERVER] Node.js UDP Server Active.</b>");
 }
 
 void MainWindow::handleServerStopped() {
     // Update UI when Node.js server process stops.
     isServerRunning = false;
-    btnServer->setText("UDP Server Başlat");
+    btnServer->setText("Start UDP Server");
     statusDot->setStyleSheet("background-color: red; border-radius: 6px;");
-    debugLog->appendHtml("<b style='color: red;'>[SERVER] UDP Server Durduruldu.</b>");
+    debugLog->appendHtml("<b style='color: red;'>[SERVER] UDP Server Stopped.</b>");
 }
 
 void MainWindow::runMonitorCycle() {
@@ -245,15 +245,15 @@ void MainWindow::runMonitorCycle() {
 
     for (const auto& monitor : monitors) {
         if (auto m = dynamic_cast<CPUMonitor*>(monitor.get())) {
-            lblCpu->setText(QString("CPU Kullanımı: %1%").arg(m->getData().load, 0, 'f', 1));
+            lblCpu->setText(QString("CPU Usage: %1%").arg(m->getData().load, 0, 'f', 1));
         }
         else if (auto m = dynamic_cast<MemoryMonitor*>(monitor.get())) {
             auto d = m->getData();
-            lblRam->setText(QString("Bellek: %1 GB / %2 GB (%3%)").arg(d.usedGB, 0, 'f', 2).arg(d.totalGB, 0, 'f', 2).arg(d.usagePercentage));
+            lblRam->setText(QString("Memory: %1 GB / %2 GB (%3%)").arg(d.usedGB, 0, 'f', 2).arg(d.totalGB, 0, 'f', 2).arg(d.usagePercentage));
         }
         else if (auto m = dynamic_cast<NetworkBytes*>(monitor.get())) {
             // Build a short per-interface summary for the label.
-            QString netS = "Ağ Trafiği:\n";
+            QString netS = "Network Traffic:\n";
             for (const auto& iface : m->getData()) {
                 if (iface.speedInKB > 0.1) {
                     netS += QString(" • %1: ↓%2 KB/s\n")
@@ -265,18 +265,18 @@ void MainWindow::runMonitorCycle() {
         }
         else if (auto m = dynamic_cast<MediaMonitor*>(monitor.get())) {
             auto media = m->getData();
-            lblMedia->setText(wcslen(media.title) > 0 ? QString("Medya: %1").arg(QString::fromWCharArray(media.title)) : "Medya: Boşta");
+            lblMedia->setText(wcslen(media.title) > 0 ? QString("Media: %1").arg(QString::fromWCharArray(media.title)) : "Media: Idle");
         }
         else if (auto m = dynamic_cast<AudioMonitor*>(monitor.get())) {
             // Simple "active channel" count: how many apps currently have volume > 0.
             int active = 0;
             for (auto &app : m->getData().apps) if (app.volume > 0) active++;
-            lblAudioApps->setText(QString("Aktif Ses Kanalı: %1").arg(active));
+            lblAudioApps->setText(QString("Active Audio Channels: %1").arg(active));
         }
         else if (auto m = dynamic_cast<ProcessMonitor*>(monitor.get())) {
             // Show the foreground application and select an icon based on filename.
             std::string appName = m->getData().activeProcessName;
-            lblAppName->setText(QString("Aktif: %1").arg(QString::fromStdString(appName)));
+            lblAppName->setText(QString("Active: %1").arg(QString::fromStdString(appName)));
 
             // Icon selection rules (simple mapping).
             QString iconPath = ":/icons/default.png";
@@ -304,7 +304,7 @@ void MainWindow::runMonitorCycle() {
 void MainWindow::clearLogs() {
     // Clears the debug log widget.
     debugLog->clear();
-    debugLog->appendPlainText(">>> Loglar temizlendi.");
+    debugLog->appendPlainText(">>> Logs cleared.");
 }
 
 MainWindow::~MainWindow() {
