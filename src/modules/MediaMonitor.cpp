@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <sstream>
 
-// WinRT Başlıkları
 #include <windows.media.control.h>
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
@@ -17,6 +16,7 @@ using namespace ABI::Windows::Media::Control;
 using namespace ABI::Windows::Foundation;
 
 MediaMonitor::MediaMonitor(int ms) : BaseMonitor(ms) {
+    // Start with an empty packet.
     memset(&currentData, 0, sizeof(MediaPacket));
 }
 
@@ -26,11 +26,12 @@ MediaMonitor::~MediaMonitor() {
 }
 
 void MediaMonitor::init() {
+    // WinRT initialization for this thread.
     RoInitialize(RO_INIT_MULTITHREADED);
 }
 
-// --- Yardımcı Metot: Başlık Temizleme ---
 void MediaMonitor::cleanTitle(std::wstring &title) {
+    // Remove common suffixes that browsers/media apps add to window titles.
     const std::wstring sfx[] = {L" - YouTube", L" - Spotify", L" - Google Chrome", L" - Microsoft Edge"};
     for (const auto &s: sfx) {
         size_t pos = title.find(s);
@@ -38,8 +39,8 @@ void MediaMonitor::cleanTitle(std::wstring &title) {
     }
 }
 
-// --- Yardımcı Metot: Zaman Formatlayıcı ---
 std::string MediaMonitor::formatTime(uint32_t s) const {
+    // Helper for formatting seconds into a readable string.
     if (s == 0) return "00:00";
     uint32_t hrs = s / 3600;
     uint32_t mins = (s % 3600) / 60;
@@ -50,8 +51,10 @@ std::string MediaMonitor::formatTime(uint32_t s) const {
     return ss.str();
 }
 
-// --- Yardımcı Metot: Pencere Tarama (Fallback) ---
 BOOL CALLBACK MediaMonitor::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    // Fallback approach:
+    // Scan visible windows and look for "YouTube" or "Spotify" in the title.
+    // If found, copy the first match into the MediaPacket.
     wchar_t buf[512];
     if (IsWindowVisible(hwnd) && GetWindowTextW(hwnd, buf, 512) > 0) {
         std::wstring ws(buf);
@@ -67,8 +70,11 @@ BOOL CALLBACK MediaMonitor::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
-// --- Ana İzleme Metodu ---
 void MediaMonitor::update() {
+    // Primary approach:
+    // Use Windows Global System Media Transport Controls to get playback state and timeline.
+    //
+    // This code uses WinRT async operations and waits for completion in a simple loop.
     static thread_local bool threadInit = false;
     if (!threadInit) {
         RoInitialize(RO_INIT_MULTITHREADED);
@@ -132,17 +138,22 @@ void MediaMonitor::update() {
             }
         }
     }
+
+    // Fallback: try to detect title/source by scanning window titles.
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&newData));
+
+    // Clean up the title for nicer display.
     std::wstring ts(newData.title);
     cleanTitle(ts);
     wcsncpy(newData.title, ts.c_str(), 63);
 
+    // Publish new packet safely.
     std::lock_guard<std::mutex> lock(mediaMutex);
     currentData = newData;
 }
 
-// --- SENİN MEŞHUR MEDYA KOMUT METODUN (Geri Geldi) ---
 void MediaMonitor::sendMediaCommand(int commandId) {
+    // Sends a media control command to the currently active media session.
     HRESULT hrInit = RoInitialize(RO_INIT_MULTITHREADED);
     ComPtr<IGlobalSystemMediaTransportControlsSessionManagerStatics> managerStatics;
     if (SUCCEEDED(
@@ -174,13 +185,12 @@ void MediaMonitor::sendMediaCommand(int commandId) {
                             if (SUCCEEDED(session->GetTimelineProperties(&timeline))) {
                                 TimeSpan currentPos;
                                 if (SUCCEEDED(timeline->get_Position(&currentPos))) {
-                                    long long offset = 100000000LL; // 10 saniye (Windows ticks)
+                                    long long offset = 100000000LL; // 10 seconds in 100ns ticks
                                     if (commandId == 5) offset *= -1;
 
                                     long long requestedPos = currentPos.Duration + offset;
                                     if (requestedPos < 0) requestedPos = 0;
 
-                                    // TryChangePlaybackPositionAsync INT64 bekler
                                     session->TryChangePlaybackPositionAsync(requestedPos, &actionOp);
                                 }
                             }

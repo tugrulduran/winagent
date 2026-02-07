@@ -9,7 +9,13 @@
 #include <map>
 #include <mutex>
 
-// Arayüz verilerini tutan yapı
+/*
+ * InterfaceData
+ * -------------
+ * Speed values are computed as a delta between two byte counters:
+ * - speedInKB  = incoming KB per second
+ * - speedOutKB = outgoing KB per second
+ */
 struct InterfaceData {
     std::wstring description;
     double speedInKB = 0.0;
@@ -19,8 +25,11 @@ struct InterfaceData {
 class NetworkBytes : public BaseMonitor {
 private:
     std::vector<InterfaceData> interfaces;
-    // LUID bazlı trafik takibi (Hız hesabı için önceki değerleri saklar)
+
+    // Key: interface LUID, Value: last seen (InOctets, OutOctets).
+    // Used to compute speed from byte counters.
     std::map<uint64_t, std::pair<uint64_t, uint64_t>> lastTrafficMap;
+
     mutable std::mutex dataMutex;
 
 public:
@@ -30,7 +39,7 @@ public:
     void init() override;
     void update() override;
 
-    // String yerine doğrudan vektör döner
+    // Returns a copy of the latest interface list (thread-safe).
     std::vector<InterfaceData> getData() const;
 };
 

@@ -5,28 +5,33 @@
 #include <windows.h>
 #include <mutex>
 
-// RAM verilerini ham (raw) halde tutan struct
+/*
+ * MemoryData
+ * ----------
+ * Snapshot of physical memory (RAM) usage in gigabytes.
+ */
 struct MemoryData {
     double totalGB = 0.0;
     double usedGB = 0.0;
     double freeGB = 0.0;
-    int usagePercentage = 0;
+    int usagePercentage = 0; // 0..100
 };
 
 class MemoryMonitor : public BaseMonitor {
 private:
     MemoryData data;
-    mutable std::mutex dataMutex; // Const metod içinde kilit kullanabilmek için mutable
+
+    // Protects 'data'. Mutable so getData() can lock in a const method.
+    mutable std::mutex dataMutex;
 
 public:
     MemoryMonitor(int interval = 1000);
     ~MemoryMonitor() override;
 
-    // BaseMonitor arayüzü
     void init() override;
     void update() override;
 
-    // Ham veriyi dönen getter
+    // Returns a copy of the latest RAM snapshot (thread-safe).
     MemoryData getData() const;
 };
 

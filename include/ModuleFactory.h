@@ -9,9 +9,19 @@
 #include "modules/MediaMonitor.h"
 #include "modules/NetworkBytes.h"
 #include "modules/AudioMonitor.h"
-#include "modules/ProcessMonitor.h" // <--- YENİ EKLEME
+#include "modules/ProcessMonitor.h"
 
-// PROCESS tipini ekledik
+/*
+ * ModuleFactory
+ * -------------
+ * Central place that decides:
+ * - which monitors exist
+ * - which update interval each monitor uses
+ *
+ * Why a factory?
+ * - MainWindow does not need to know constructor details.
+ * - Adding a new module becomes a small, localized change.
+ */
 enum class ModuleType { CPU, RAM, MEDIA, NETWORK, AUDIO, PROCESS };
 
 class ModuleFactory {
@@ -28,7 +38,7 @@ public:
                 return std::make_unique<NetworkBytes>(1000);
             case ModuleType::AUDIO:
                 return std::make_unique<AudioMonitor>(1000);
-            case ModuleType::PROCESS: // <--- YENİ EKLEME
+            case ModuleType::PROCESS:
                 return std::make_unique<ProcessMonitor>(5000);
             default:
                 return nullptr;

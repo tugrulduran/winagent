@@ -8,8 +8,10 @@
 #pragma comment(lib, "ole32.lib")
 
 // ============================================================
-// IPolicyConfig - Undocumented Windows Interface
-// BU BÖLÜMÜN SIRALAMASI KRİTİKTİR, DEĞİŞTİRMEYİN.
+// IPolicyConfig (undocumented interface)
+// Important:
+// - The method order must match the real Windows interface layout.
+// - Do not reorder methods unless you know exactly what you are doing.
 // ============================================================
 interface IPolicyConfig : public IUnknown {
 public:
@@ -33,7 +35,7 @@ static const CLSID CLSID_PolicyConfigClient =
 static const IID IID_IPolicyConfig =
     { 0xf8679f50, 0x850a, 0x41cf,{0x9c,0x72,0x43,0x0f,0x29,0x02,0x90,0xc8} };
 
-// COM Yönetimi için Helper
+// RAII helper for COM initialization.
 class ScopedCOM {
 public:
     ScopedCOM() { initialized = SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)); }
@@ -42,10 +44,8 @@ private:
     bool initialized{false};
 };
 
-// ============================================================
-// Cihaz Listeleme
-// ============================================================
 std::vector<AudioDevice> AudioDeviceSwitcher::listDevices() {
+    // Enumerates active render devices and marks the default one.
     std::vector<AudioDevice> devices;
     ScopedCOM com;
 
@@ -104,17 +104,17 @@ std::vector<AudioDevice> AudioDeviceSwitcher::listDevices() {
     return devices;
 }
 
-// ============================================================
-// Varsayılan Yapma (Action)
-// ============================================================
 bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId) {
+    // Sets the given device as default for all common roles:
+    // - eConsole
+    // - eMultimedia
+    // - eCommunications
     ScopedCOM com;
     IPolicyConfig* policy = nullptr;
 
     HRESULT hr = CoCreateInstance(CLSID_PolicyConfigClient, nullptr, CLSCTX_INPROC_SERVER, IID_IPolicyConfig, (void**)&policy);
     if (FAILED(hr)) return false;
 
-    // eConsole, eMultimedia ve eCommunications rollerinin tamamını set ediyoruz
     policy->SetDefaultEndpoint(deviceId.c_str(), eConsole);
     policy->SetDefaultEndpoint(deviceId.c_str(), eMultimedia);
     policy->SetDefaultEndpoint(deviceId.c_str(), eCommunications);
@@ -124,6 +124,7 @@ bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId) {
 }
 
 bool AudioDeviceSwitcher::setDefaultByIndex(int index) {
+    // Convenience helper: pick deviceId from listDevices() by index.
     auto devices = listDevices();
     if (index < 0 || index >= (int)devices.size()) return false;
     return setDefaultById(devices[index].deviceId);

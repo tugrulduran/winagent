@@ -14,10 +14,12 @@ AudioMonitor::~AudioMonitor() {
 }
 
 void AudioMonitor::init() {
+    // Initialize COM for this thread. Core Audio uses COM interfaces.
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
 }
 
 bool AudioMonitor::IsIgnored(const std::wstring& name) {
+    // Simple substring match against ignoreList.
     for (const auto& ignored : ignoreList) {
         if (name.find(ignored) != std::wstring::npos) return true;
     }
@@ -47,6 +49,10 @@ std::wstring AudioMonitor::GetFriendlyName(const std::wstring &filePath) {
 }
 
 void AudioMonitor::update() {
+    // Reads:
+    // 1) system master volume
+    // 2) audio sessions (apps) and their per-session volume
+
     IMMDeviceEnumerator *pEnumerator = NULL;
     IMMDevice *pDevice = NULL;
     IAudioSessionManager2 *pSessionManager = NULL;
@@ -61,7 +67,7 @@ void AudioMonitor::update() {
 
     AudioSnapshot newSnapshot;
 
-    // Master Volume
+    // Read master volume (system output volume).
     pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&pEndpointVolume);
     if (pEndpointVolume) {
         pEndpointVolume->GetMasterVolumeLevelScalar(&newSnapshot.masterVolume);
@@ -70,7 +76,7 @@ void AudioMonitor::update() {
         pEndpointVolume->Release();
     }
 
-    // App Sessions
+    // Enumerate per-application audio sessions.
     pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void**)&pSessionManager);
     if (pSessionManager) {
         pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
@@ -90,6 +96,7 @@ void AudioMonitor::update() {
             pSessionCtrl2->GetProcessId(&pid);
             std::wstring finalName = L"System Sounds";
 
+            // If PID is known, try to resolve EXE path and a friendly ProductName.
             if (pid != 0) {
                 HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
                 if (hProc) {
@@ -102,6 +109,7 @@ void AudioMonitor::update() {
                 }
             }
 
+            // Store session volume/mute unless this app is in the ignore list.
             if (!IsIgnored(finalName)) {
                 float vol = 0; BOOL mute = FALSE;
                 pVolCtrl->GetMasterVolume(&vol);
@@ -115,6 +123,7 @@ void AudioMonitor::update() {
         pSessionManager->Release();
     }
 
+    // Publish the snapshot safely.
     std::lock_guard<std::mutex> lock(dataMutex);
     currentSnapshot = std::move(newSnapshot);
 
@@ -123,14 +132,17 @@ void AudioMonitor::update() {
 }
 
 AudioSnapshot AudioMonitor::getData() const {
+    // Return a copy so callers do not need to hold the mutex.
     std::lock_guard<std::mutex> lock(dataMutex);
     return currentSnapshot;
 }
 
 void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
+    // Clamp volume into the expected range.
     if (newVolume < 0.0f) newVolume = 0.0f;
     if (newVolume > 1.0f) newVolume = 1.0f;
 
+    // Find the audio session whose process id matches targetPid, then set its volume.
     IMMDeviceEnumerator* pEnumerator = NULL;
     IMMDevice* pDevice = NULL;
     IAudioSessionManager2* pSessionManager = NULL;
@@ -154,14 +166,16 @@ void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
         DWORD currentPid = 0;
         pSessionControl2->GetProcessId(&currentPid);
 
-        if (currentPid == targetPid) { // Sayısal ID Karşılaştırması
+        // Match by numeric PID.
+        if (currentPid == targetPid) {
             ISimpleAudioVolume* pVolumeControl = NULL;
             pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pVolumeControl);
             if (pVolumeControl) {
                 pVolumeControl->SetMasterVolume(newVolume, NULL);
                 pVolumeControl->Release();
             }
-            // Hedefi bulduk, döngüden çıkabiliriz
+
+            // Target found; stop scanning sessions.
             pSessionControl2->Release();
             pSessionControl->Release();
             break;

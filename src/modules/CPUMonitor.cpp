@@ -10,15 +10,18 @@ CPUMonitor::~CPUMonitor() {
 }
 
 void CPUMonitor::init() {
-    // 1. Çekirdek Sayısı
+    // Read logical CPU core count once at startup.
     SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);
     data.cores = sysInfo.dwNumberOfProcessors;
 
-    // 2. PDH Sorgusu Hazırlığı
+    // Setup a PDH query that reads total CPU time.
     PdhOpenQuery(NULL, NULL, &cpuQuery);
-    // Not: PdhAddEnglishCounter kullanmak dil bağımsızlığı için kritiktir
+
+    // Use English counter name to avoid locale issues on Windows.
     PdhAddEnglishCounter(cpuQuery, L"\\Processor(_Total)\\% Processor Time", NULL, &cpuTotal);
+
+    // First collection "primes" the counter.
     PdhCollectQueryData(cpuQuery);
 }
 
@@ -27,13 +30,13 @@ void CPUMonitor::update() {
     PdhCollectQueryData(cpuQuery);
     PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal);
 
-    // Thread-safe yazma
+    // Publish latest value safely.
     std::lock_guard<std::mutex> lock(dataMutex);
     data.load = counterVal.doubleValue;
 }
 
 CPUData CPUMonitor::getData() const {
-    // Thread-safe okuma
+    // Return a copy so callers do not need to hold the mutex.
     std::lock_guard<std::mutex> lock(dataMutex);
     return data;
 }

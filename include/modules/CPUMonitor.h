@@ -7,11 +7,15 @@
 #include <mutex>
 #include <string>
 
-// CPU Modülüne özel veri yapısı
+/*
+ * CPUData
+ * -------
+ * Plain data container returned by CPUMonitor::getData().
+ */
 struct CPUData {
-    double load = 0.0;
-    int cores = 0;
-    std::wstring cpuName = L"";
+    double load = 0.0;          // CPU usage percent (0..100)
+    int cores = 0;              // logical core count
+    std::wstring cpuName = L""; // reserved for future use
 };
 
 class CPUMonitor : public BaseMonitor {
@@ -19,7 +23,9 @@ private:
     PDH_HQUERY cpuQuery = nullptr;
     PDH_HCOUNTER cpuTotal = nullptr;
     CPUData data;
-    mutable std::mutex dataMutex; // getData const olduğu için mutable
+
+    // Protects 'data'. Mutable so getData() can lock in a const method.
+    mutable std::mutex dataMutex;
 
 public:
     CPUMonitor(int interval = 1000);
@@ -28,7 +34,7 @@ public:
     void init() override;
     void update() override;
 
-    // String değil, doğrudan struct döner
+    // Returns a copy of the latest CPU snapshot (thread-safe).
     CPUData getData() const;
 };
 

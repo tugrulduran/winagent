@@ -6,6 +6,22 @@
 #include <string>
 #include <mutex>
 
+/*
+ * ProcessMonitor
+ * --------------
+ * Tracks the currently focused (foreground) application.
+ *
+ * How it works:
+ * - Uses GetForegroundWindow() to get the active window.
+ * - Uses GetWindowThreadProcessId() to get the owning process ID.
+ * - Uses QueryFullProcessImageNameA() to read the EXE path.
+ * - Stores only the EXE filename (example: "chrome.exe").
+ *
+ * Thread-safety:
+ * - update() writes under a mutex.
+ * - getData() returns a copy under the same mutex.
+ */
+
 struct ProcessData {
     std::string activeProcessName = "unknown";
 };
@@ -18,7 +34,7 @@ private:
 public:
     ProcessMonitor(int interval = 1000) : BaseMonitor(interval) {}
     
-    void init() override {} // Özel bir init gerekmiyor
+    void init() override {} // No special initialization is needed.
 
     void update() override {
         char buffer[MAX_PATH] = "";

@@ -2,13 +2,13 @@
 #include "MainWindow.h"
 
 int main(int argc, char *argv[]) {
-    // Qt Uygulamasını başlat
+    // Create the Qt application object (sets up the event loop infrastructure).
     QApplication app(argc, argv);
 
-    // Ana pencereyi oluştur ve göster
+    // Create and show the main window (the dashboard UI).
     MainWindow w;
     w.show();
 
-    // Uygulama döngüsüne gir (Event Loop)
+    // Start the Qt event loop. This call blocks until the app exits.
     return app.exec();
 }

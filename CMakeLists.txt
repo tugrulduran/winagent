@@ -2,16 +2,24 @@ cmake_minimum_required(VERSION 3.28)
 project(WinAgent)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_AUTOMOC ON) # Qt'nin Meta-Object Compiler'ını açar
-set(CMAKE_AUTOUIC ON) # .ui dosyaları kullanacaksan açar
-set(CMAKE_AUTORCC ON) # .qrc (kaynak) dosyaları için açar
 
-# 1. Qt Paketlerini Bul (Widgets ve Network gerekiyor)
+# Qt build helpers:
+# - AUTOMOC: runs Qt's Meta-Object Compiler (needed for signals/slots, Q_OBJECT, etc.)
+# - AUTOUIC: auto-generates code from .ui files (Qt Designer)
+# - AUTORCC: auto-generates code from .qrc resource files
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+# Qt modules used by this app:
+# - Widgets: UI (QMainWindow, QLabel, QPushButton, ...)
+# - Network: networking helpers (some parts still use WinSock directly)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 include_directories(include)
 
-# 3. Kaynak Dosyaları
+# Application sources and headers.
+# Note: headers are listed so IDEs show them nicely; CMake does not compile headers by themselves.
 add_executable(WinAgent
         main.cpp
         include/BaseMonitor.h
@@ -35,7 +43,7 @@ add_executable(WinAgent
         include/modules/ProcessMonitor.h
 )
 
-# 4. Kütüphane Bağlantıları (Qt kütüphanelerini ekledik)
+# Link against Qt and Windows system libraries used by different monitors.
 target_link_libraries(WinAgent PRIVATE
         Qt6::Widgets
         Qt6::Network
@@ -53,8 +61,7 @@ target_link_libraries(WinAgent PRIVATE
         uuid
 )
 
-# 5. Windows Uygulama Tipi
-# Eğer uygulamanın arkada bir konsol penceresi açmasını İSTEMİYORSAN:
+# If you want a pure GUI app without a console window, enable this:
 # set_target_properties(WinAgent PROPERTIES WIN32_EXECUTABLE TRUE)
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN)

@@ -4,7 +4,7 @@
 #include <QDateTime>
 #include <QApplication>
 #include <QScrollBar>
-#include <QFile> // Dosya kontrolü için
+#include <QFile>
 #include <QDir>
 #include <QFileInfo>
 
@@ -19,11 +19,13 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), isServerRunning(false) {
     setupUI();
 
+    // Create and start all monitor modules (each runs in its own worker thread).
     monitors = ModuleFactory::createAll();
     for (auto& m : monitors) {
         m->start();
     }
 
+    // Create the UDP reporter. It reads snapshots from monitors and sends them out.
     reporter = std::make_unique<NetworkReporter>(
         "127.0.0.1", 5000, 1000,
         findMonitor<CPUMonitor>(),
@@ -33,10 +35,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), isServerRunning(f
         findMonitor<MediaMonitor>()
     );
 
-    // Logları debugLog alanına yönlendir
+    // Forward reporter log messages into the UI log widget.
+    // Reporter runs on background threads, so we use invokeMethod with QueuedConnection
+    // to safely update the UI from the Qt main thread.
     reporter->setLogCallback([this](const std::string& msg) {
-        // Qt thread-safe olması için QMetaObject::invokeMethod kullanılabilir
-        // ama basitlik için şimdilik doğrudan append (NetworkReporter thread'inden gelir)
         QMetaObject::invokeMethod(this, [this, msg](){
             debugLog->appendHtml(QString("<span style='color: #ffff00;'>%1</span>").arg(QString::fromStdString(msg)));
         }, Qt::QueuedConnection);
@@ -46,12 +48,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), isServerRunning(f
 
     debugLog->appendPlainText(">>> WinAgent Engine & Reporter Başlatıldı.");
 
+    // Timer that refreshes dashboard labels by pulling latest data from monitors.
     cycleTimer = new QTimer(this);
     connect(cycleTimer, &QTimer::timeout, this, &MainWindow::runMonitorCycle);
     cycleTimer->start(2000);
 }
 
 void MainWindow::setupUI() {
+    // Build the entire UI (widgets + layouts + signal/slot connections).
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
     setWindowTitle("WinAgent Dashboard v2.1");
@@ -59,10 +63,10 @@ void MainWindow::setupUI() {
 
     QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
 
-    // --- SOL TARAF ---
+    // Left side: dashboard + debug log
     QVBoxLayout *leftLayout = new QVBoxLayout();
 
-    // 1. Dashboard
+    // Dashboard group (system status summary)
     QGroupBox *dashboardGroup = new QGroupBox("Sistem Durumu");
     dashboardGroup->setStyleSheet("QGroupBox { font-weight: bold; color: #55aaff; border: 1px solid #333; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }");
     QVBoxLayout *dashLayout = new QVBoxLayout(dashboardGroup);
@@ -74,9 +78,9 @@ void MainWindow::setupUI() {
     lblMedia = new QLabel("Medya: Boşta"); lblMedia->setStyleSheet("font-size: 11pt; color: #55aaff;");
     lblAudioApps = new QLabel("Ses Kanalları: -"); lblAudioApps->setStyleSheet("font-size: 10pt; color: #888;");
 
-    // ... lblAudioApps'ten hemen sonrasına:
+    // Foreground app display (icon + app name)
     lblAppIcon = new QLabel();
-    lblAppIcon->setFixedSize(64, 64); // İkon boyutu
+    lblAppIcon->setFixedSize(64, 64);
     lblAppIcon->setAlignment(Qt::AlignCenter);
 
     lblAppName = new QLabel("Aktif Uygulama: -");
@@ -92,7 +96,7 @@ void MainWindow::setupUI() {
     dashLayout->addWidget(lblAudioApps);
     dashLayout->addStretch();
 
-    // 2. Debug Log
+    // Debug log area (read-only text console)
     debugLog = new QPlainTextEdit();
     debugLog->setReadOnly(true);
     debugLog->setMaximumHeight(250);
@@ -104,7 +108,7 @@ void MainWindow::setupUI() {
 
     mainLayout->addLayout(leftLayout, 3);
 
-    // --- SAĞ PANEL ---
+    // Right side: control buttons + server status
     QVBoxLayout *buttonLayout = new QVBoxLayout();
     QString btnStyle = "QPushButton { padding: 8px; background: #222; color: white; border: 1px solid #444; } QPushButton:hover { background: #333; }";
 
@@ -136,6 +140,7 @@ void MainWindow::setupUI() {
 
     mainLayout->addLayout(buttonLayout, 1);
 
+    // External server process (Node.js) + UI wiring
     serverProcess = new QProcess(this);
     connect(btnServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
     connect(serverProcess, &QProcess::started, this, &MainWindow::handleServerStarted);
@@ -145,6 +150,7 @@ void MainWindow::setupUI() {
     connect(btnRefresh, &QPushButton::clicked, this, &MainWindow::runMonitorCycle);
     connect(btnExit, &QPushButton::clicked, qApp, &QApplication::quit);
 
+    // Lists audio output devices in the debug log.
     connect(btnDevices, &QPushButton::clicked, this, [this](){
         auto devices = AudioDeviceSwitcher::listDevices();
         debugLog->appendHtml("<br><b style='color: #55aaff;'>--- AKTİF SES CİHAZLARI ---</b>");
@@ -155,8 +161,8 @@ void MainWindow::setupUI() {
 }
 
 void MainWindow::cleanupPort(int port) {
-    // PowerShell üzerinden UDP portunu kullanan PID'yi bulup öldüren güvenli komut
-    // Bu yöntem netstat sütun sayısından (4 mü 5 mi) etkilenmez.
+    // Uses PowerShell to find a process owning a UDP endpoint and stops it.
+    // This avoids parsing netstat output (which can vary across systems/locales).
     QString command = "powershell";
     QStringList args;
     args << "-NoProfile" << "-Command"
@@ -169,50 +175,56 @@ void MainWindow::cleanupPort(int port) {
 }
 
 void MainWindow::toggleServer() {
+    // Starts/stops the external Node.js server and keeps UI state in sync.
     if (!isServerRunning) {
-        // 1. Portları temizleme emrini ver
+        // Ask Windows to free the UDP port first (best-effort).
         cleanupPort(5000);
 
-        // 2. PowerShell'in süreci öldürmesi için 1.5 saniye mola (Güvenli süre)
+        // Give the OS a short moment to actually kill the owning process.
         QTimer::singleShot(2500, this, [this]() {
-            // Script yolunu kontrol et
+            // Build the script path relative to the application directory.
             QString scriptPath = QCoreApplication::applicationDirPath() + "/../../nodedash/agentserver.js";
 
-            // Çalışma dizinini nodedash klasörü yaparsak node.exe bağımlılıkları daha rahat bulur
+            // Set working directory so node can resolve relative paths correctly.
             QDir scriptDir(QFileInfo(scriptPath).absolutePath());
             serverProcess->setWorkingDirectory(scriptDir.absolutePath());
 
+            // Start Node. The script is referenced by filename because working directory is set.
             serverProcess->start("node.exe", QStringList() << "agentserver.js");
 
             debugLog->appendHtml("<i style='color: gray;'>[DEBUG] Sunucu başlatıldı.</i>");
         });
     } else {
+        // Stop the process, then free the port again just in case.
         serverProcess->kill();
         serverProcess->waitForFinished(1000);
-        cleanupPort(5000); // Kapatırken de temizle
+        cleanupPort(5000);
     }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    // Clean shutdown:
+    // - stop server process
+    // - free UDP port
+    // - stop reporter and all monitor threads
+
     debugLog->appendPlainText(">>> Uygulama kapatılıyor, temizlik yapılıyor...");
 
-    // 1. Node Server'ı durdur
     if (serverProcess && serverProcess->state() != QProcess::NotRunning) {
         serverProcess->kill();
         serverProcess->waitForFinished(1000);
     }
 
-    // 2. Portları zorla temizle (Zombi process kalmaması için)
     cleanupPort(5000);
 
-    // 3. Modülleri ve Reporter'ı durdur
     if (reporter) reporter->stop();
     for (auto& m : monitors) m->stop();
 
-    event->accept(); // Kapanışa izin ver
+    event->accept();
 }
 
 void MainWindow::handleServerStarted() {
+    // Update UI when Node.js server process starts.
     isServerRunning = true;
     btnServer->setText("UDP Server Durdur");
     statusDot->setStyleSheet("background-color: #00ff00; border-radius: 6px;");
@@ -220,6 +232,7 @@ void MainWindow::handleServerStarted() {
 }
 
 void MainWindow::handleServerStopped() {
+    // Update UI when Node.js server process stops.
     isServerRunning = false;
     btnServer->setText("UDP Server Başlat");
     statusDot->setStyleSheet("background-color: red; border-radius: 6px;");
@@ -227,6 +240,9 @@ void MainWindow::handleServerStopped() {
 }
 
 void MainWindow::runMonitorCycle() {
+    // Pull the latest data from each monitor and update labels.
+    // Each monitor returns a copy (thread-safe), so the UI never holds monitor locks.
+
     for (const auto& monitor : monitors) {
         if (auto m = dynamic_cast<CPUMonitor*>(monitor.get())) {
             lblCpu->setText(QString("CPU Kullanımı: %1%").arg(m->getData().load, 0, 'f', 1));
@@ -236,9 +252,14 @@ void MainWindow::runMonitorCycle() {
             lblRam->setText(QString("Bellek: %1 GB / %2 GB (%3%)").arg(d.usedGB, 0, 'f', 2).arg(d.totalGB, 0, 'f', 2).arg(d.usagePercentage));
         }
         else if (auto m = dynamic_cast<NetworkBytes*>(monitor.get())) {
+            // Build a short per-interface summary for the label.
             QString netS = "Ağ Trafiği:\n";
             for (const auto& iface : m->getData()) {
-                if (iface.speedInKB > 0.1) netS += QString(" • %1: ↓%2 KB/s\n").arg(QString::fromWCharArray(iface.description.c_str()).left(20)).arg(iface.speedInKB, 0, 'f', 1);
+                if (iface.speedInKB > 0.1) {
+                    netS += QString(" • %1: ↓%2 KB/s\n")
+                                .arg(QString::fromWCharArray(iface.description.c_str()).left(20))
+                                .arg(iface.speedInKB, 0, 'f', 1);
+                }
             }
             lblNet->setText(netS);
         }
@@ -247,16 +268,18 @@ void MainWindow::runMonitorCycle() {
             lblMedia->setText(wcslen(media.title) > 0 ? QString("Medya: %1").arg(QString::fromWCharArray(media.title)) : "Medya: Boşta");
         }
         else if (auto m = dynamic_cast<AudioMonitor*>(monitor.get())) {
+            // Simple "active channel" count: how many apps currently have volume > 0.
             int active = 0;
-            for(auto &app : m->getData().apps) if(app.volume > 0) active++;
+            for (auto &app : m->getData().apps) if (app.volume > 0) active++;
             lblAudioApps->setText(QString("Aktif Ses Kanalı: %1").arg(active));
         }
         else if (auto m = dynamic_cast<ProcessMonitor*>(monitor.get())) {
+            // Show the foreground application and select an icon based on filename.
             std::string appName = m->getData().activeProcessName;
             lblAppName->setText(QString("Aktif: %1").arg(QString::fromStdString(appName)));
 
-            // İkon Belirleme Mantığı
-            QString iconPath = ":/icons/default.png"; // Varsayılan ikon
+            // Icon selection rules (simple mapping).
+            QString iconPath = ":/icons/default.png";
 
             if (appName == "xplane.exe") {
                 iconPath = ":/icons/airplane.png";
@@ -266,22 +289,26 @@ void MainWindow::runMonitorCycle() {
                 iconPath = ":/icons/web.png";
             }
 
-            // İkonu yükle (QPixmap kullanarak)
+            // Load and display the icon.
             QPixmap pix(iconPath);
-            if(!pix.isNull()) {
+            if (!pix.isNull()) {
                 lblAppIcon->setPixmap(pix.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             }
         }
     }
+
+    // Keep the log view scrolled to the bottom.
     debugLog->verticalScrollBar()->setValue(debugLog->verticalScrollBar()->maximum());
 }
 
 void MainWindow::clearLogs() {
+    // Clears the debug log widget.
     debugLog->clear();
     debugLog->appendPlainText(">>> Loglar temizlendi.");
 }
 
 MainWindow::~MainWindow() {
+    // Destructor is a last safety net to stop background work.
     if (serverProcess) { serverProcess->kill(); serverProcess->waitForFinished(); }
     if (reporter) reporter->stop();
     for (auto& m : monitors) m->stop();

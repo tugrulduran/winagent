@@ -24,7 +24,7 @@ NetworkBytes::~NetworkBytes() {
 }
 
 void NetworkBytes::init() {
-    // İlk çalıştırmada fark oluşması için değerleri bir kez oku
+    // Read once so we have "previous counters" ready for the next update().
     update();
 }
 
@@ -34,13 +34,13 @@ void NetworkBytes::update() {
     if (GetIfTable2(&table) == NO_ERROR) {
         std::vector<InterfaceData> currentInterfaces;
 
-        // Hız hesabı için geçen süreyi saniyeye çevir
+        // Convert update interval to seconds for KB/s calculation.
         double seconds = intervalMs / 1000.0;
 
         for (ULONG i = 0; i < table->NumEntries; i++) {
             MIB_IF_ROW2& row = table->Table[i];
 
-            // --- FİLTRELEME MANTIĞI ---
+            // Keep only common physical interfaces (Ethernet / Wi‑Fi) and skip virtual adapters.
             bool isCorrectType = (row.Type == IF_TYPE_ETHERNET_CSMACD || row.Type == IF_TYPE_IEEE80211);
             bool hasMac = (row.PhysicalAddressLength > 0);
 
@@ -58,15 +58,14 @@ void NetworkBytes::update() {
                 uint64_t luid = row.InterfaceLuid.Value;
                 double speedIn = 0, speedOut = 0;
 
-                // Daha önce bu kartı gördüysek hız hesabı yap
+                // If we saw this interface before, compute speed using delta counters.
                 if (lastTrafficMap.count(luid)) {
                     auto& prev = lastTrafficMap[luid];
-                    // (Şu anki byte - Önceki byte) / 1024 / saniye = KB/s
                     speedIn = (row.InOctets - prev.first) / 1024.0 / seconds;
                     speedOut = (row.OutOctets - prev.second) / 1024.0 / seconds;
                 }
 
-                // Değerleri bir sonraki update için sakla
+                // Store current counters for next update().
                 lastTrafficMap[luid] = std::make_pair((uint64_t)row.InOctets, (uint64_t)row.OutOctets);
 
                 InterfaceData iface;
@@ -78,7 +77,7 @@ void NetworkBytes::update() {
             }
         }
 
-        // Thread-safe atama
+        // Publish snapshot safely.
         std::lock_guard<std::mutex> lock(dataMutex);
         interfaces = std::move(currentInterfaces);
 

@@ -7,8 +7,6 @@
 #include <atomic>
 #include <vector>
 #include <string>
-
-// Modül başlıkları
 #include <functional>
 
 #include "modules/CPUMonitor.h"
@@ -16,6 +14,20 @@
 #include "modules/NetworkBytes.h"
 #include "modules/AudioMonitor.h"
 #include "modules/MediaMonitor.h"
+
+/*
+ * NetworkReporter
+ * --------------
+ * Sends monitor data to a UDP server as a compact binary packet.
+ *
+ * Two background threads:
+ * 1) worker thread: periodically sends current monitor snapshot to server (port 5000)
+ * 2) listener thread: listens for incoming UDP commands (port 5001)
+ *
+ * Design rule:
+ * - Monitors own their data and provide it via getData() copies.
+ * - Reporter only reads data and never blocks monitor threads for long.
+ */
 
 #pragma pack(push, 1)
 struct InterfacePacket {
@@ -54,9 +66,11 @@ public:
     ~NetworkReporter();
     void start();
     void stop();
-    // Log mesajlarını MainWindow'a göndermek için callback tanımı
+
+    // UI logging hook. MainWindow can attach a callback to display logs.
     using LogCallback = std::function<void(const std::string&)>;
     void setLogCallback(LogCallback cb) { logCb = cb; }
+
 private:
     SOCKET sock;
     SOCKET cmdSock;
@@ -68,7 +82,7 @@ private:
     int intervalMs;
     uint32_t currentId = 0;
 
-    // Pointerlarımızı tutuyoruz
+    // Non-owning pointers (monitors are owned elsewhere).
     CPUMonitor* cpuPtr;
     MemoryMonitor* ramPtr;
     NetworkBytes* netPtr;

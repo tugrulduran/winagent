@@ -8,7 +8,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QGroupBox> // <--- EKLENDİ
+#include <QGroupBox>
 #include <QProcess>
 #include <memory>
 #include <vector>
@@ -23,6 +23,22 @@ class AudioMonitor;
 class MediaMonitor;
 class ProcessMonitor;
 
+/*
+ * MainWindow
+ * ----------
+ * This is the main Qt UI window.
+ *
+ * Responsibilities:
+ * - Build the dashboard UI (labels/buttons/log area).
+ * - Start all monitor modules (CPU/RAM/Network/Audio/Media/Process).
+ * - Start NetworkReporter (sends monitor data over UDP).
+ * - Periodically pull data from monitors and update labels (runMonitorCycle()).
+ * - Start/stop an external Node.js server process on demand.
+ *
+ * Important:
+ * - UI strings are NOT changed by request.
+ * - Only comments are being cleaned and rewritten in English.
+ */
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -31,15 +47,25 @@ public:
     ~MainWindow();
 
 private slots:
+    // Refresh the UI from the latest monitor data.
     void runMonitorCycle();
+
+    // Clear the debug log widget.
     void clearLogs();
+
+    // Start/stop the Node.js UDP server process.
     void toggleServer();
+
+    // UI helpers for server state.
     void handleServerStarted();
     void handleServerStopped();
 
 private:
+    // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
-    void cleanupPort(int port); // Portu işgal eden süreci bulup öldürür
+
+    // Best-effort cleanup: kill the process that is holding a UDP port (Windows).
+    void cleanupPort(int port);
 
     // UI - Dashboard
     QLabel *lblCpu;
@@ -48,22 +74,27 @@ private:
     QLabel *lblMedia;
     QLabel *lblAudioApps;
 
-    // UI - Process
-    QLabel *lblAppIcon; // İkonu göstereceğimiz yer
-    QLabel *lblAppName; // Uygulama ismini yazacağımız yer
+    // UI - Process (active foreground app info)
+    QLabel *lblAppIcon;
+    QLabel *lblAppName;
 
     // UI - Debug
-    QPlainTextEdit *debugLog; // logArea yerine artık bu kullanılıyor
+    QPlainTextEdit *debugLog;
     QLabel *statusDot;
     QPushButton *btnServer;
 
+    // External process (Node.js server)
     QProcess *serverProcess;
     bool isServerRunning = false;
 
+    // Worker modules + UDP reporter
     std::vector<std::unique_ptr<BaseMonitor>> monitors;
     std::unique_ptr<NetworkReporter> reporter;
+
+    // Triggers UI refresh periodically
     QTimer *cycleTimer;
 
+    // Find a monitor by type (uses dynamic_cast).
     template<typename T>
     T* findMonitor() {
         for (auto& m : monitors) {
@@ -71,7 +102,9 @@ private:
         }
         return nullptr;
     }
+
 protected:
+    // Called when the window is closing; used to stop threads/processes cleanly.
     void closeEvent(QCloseEvent *event) override;
 };
 

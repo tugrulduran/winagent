@@ -10,6 +10,7 @@ NetworkReporter::NetworkReporter(const std::string &ip, int port, int ms,
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
 
+    // UDP socket used for sending monitor packets to the server.
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
@@ -28,6 +29,7 @@ void NetworkReporter::start() {
 }
 
 void NetworkReporter::stop() {
+    // Stop threads first (they may be blocking on sockets).
     active = false;
     listenerActive = false;
     if (cmdSock != INVALID_SOCKET) closesocket(cmdSock);
@@ -45,7 +47,10 @@ void NetworkReporter::run() {
 }
 
 void NetworkReporter::listenForCommands() {
+    // COM is needed for some audio / media related calls on Windows.
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+    // UDP socket used only for listening to commands (port 5001).
     cmdSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     sockaddr_in localAddr;
     localAddr.sin_family = AF_INET;
@@ -58,12 +63,16 @@ void NetworkReporter::listenForCommands() {
             int bytesReceived = recvfrom(cmdSock, cmdBuffer, 8, 0, NULL, NULL);
             if (!listenerActive || bytesReceived == SOCKET_ERROR) break;
 
+            // Command packet format (8 bytes):
+            // - first 4 bytes: targetPid (uint32)
+            // - next 4 bytes: float value
             if (bytesReceived == 8) {
                 uint32_t targetPid;
                 float dataVal;
                 memcpy(&targetPid, cmdBuffer, 4);
                 memcpy(&dataVal, cmdBuffer + 4, 4);
 
+                // Special PID values are used as "command namespaces".
                 if (targetPid == 0xFFFFFFFF) {
                     std::string cmdName;
                     int cmdId = (int)dataVal;
@@ -91,7 +100,7 @@ void NetworkReporter::listenForCommands() {
 }
 
 void NetworkReporter::sendData() {
-    // 1. Yeni getData() disiplini ile ham verileri topla
+    // Read the latest snapshot from each monitor (each getData() returns a safe copy).
     CPUData cpuData = cpuPtr->getData();
     MemoryData ramData = ramPtr->getData();
     auto netIfaces = netPtr->getData();
@@ -99,7 +108,7 @@ void NetworkReporter::sendData() {
     MediaPacket mediaData = mediaPtr->getData();
     auto audioDevices = AudioDeviceSwitcher::listDevices();
 
-    // 2. Alt Paketleri Hazırla
+    // Build variable-length sub-packets.
     std::vector<InterfacePacket> netPackets;
     for (const auto &f : netIfaces)
         netPackets.push_back({(float)f.speedInKB, (float)f.speedOutKB});
@@ -124,7 +133,7 @@ void NetworkReporter::sendData() {
         devicePackets.push_back(p);
     }
 
-    // 3. Header'ı Doldur
+    // Fill the header (counts tell the receiver how to parse the payload).
     FullMonitorPacketExtended header;
     header.id = ++currentId;
     header.cpu = (float)cpuData.load;
@@ -135,7 +144,7 @@ void NetworkReporter::sendData() {
     header.hasMedia = (wcslen(mediaData.title) > 0) ? 1 : 0;
     header.deviceCount = (uint8_t)devicePackets.size();
 
-    // 4. Dinamik Buffer Oluştur ve Kopyala
+    // Allocate one contiguous buffer: [header][net...][audio...][media?][devices...]
     size_t netSize = netPackets.size() * sizeof(InterfacePacket);
     size_t audioSize = audioPackets.size() * sizeof(AudioPacket);
     size_t mediaSize = header.hasMedia ? sizeof(MediaPacket) : 0;
@@ -151,6 +160,6 @@ void NetworkReporter::sendData() {
     if (header.hasMedia) { memcpy(buffer.data() + offset, &mediaData, sizeof(MediaPacket)); offset += mediaSize; }
     if (!devicePackets.empty()) { memcpy(buffer.data() + offset, devicePackets.data(), devicesSize); offset += devicesSize; }
 
-    // 5. Gönder
+    // Send packet to server (UDP).
     sendto(sock, buffer.data(), (int)buffer.size(), 0, (sockaddr *)&serverAddr, sizeof(serverAddr));
 }
