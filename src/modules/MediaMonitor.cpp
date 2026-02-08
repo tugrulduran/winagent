@@ -133,14 +133,50 @@ void MediaMonitor::update() {
                                 newData.totalTime = totalSec;
                             }
                         }
+
+                        // NEW: Get Media Properties (Title, Artist, etc.) directly from WinRT
+                        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionMediaProperties*>> propOp;
+                        if (SUCCEEDED(session->TryGetMediaPropertiesAsync(&propOp)) && propOp) {
+                            AsyncStatus propStatus;
+                            ComPtr<IAsyncInfo> propInfo;
+                            propOp.As(&propInfo);
+                            do {
+                                propInfo->get_Status(&propStatus);
+                                if (propStatus == AsyncStatus::Started) Sleep(5);
+                            } while (propStatus == AsyncStatus::Started);
+
+                            if (propStatus == AsyncStatus::Completed) {
+                                ComPtr<IGlobalSystemMediaTransportControlsSessionMediaProperties> props;
+                                if (SUCCEEDED(propOp->GetResults(&props)) && props) {
+                                    HString title, appId;
+                                    props->get_Title(title.GetAddressOf());
+                                    session->get_SourceAppUserModelId(appId.GetAddressOf());
+
+                                    if (title.GetRawBuffer(nullptr)) {
+                                        wcsncpy(newData.title, title.GetRawBuffer(nullptr), 63);
+                                    }
+                                    if (appId.GetRawBuffer(nullptr)) {
+                                        std::wstring app(appId.GetRawBuffer(nullptr));
+                                        if (app.find(L"Spotify") != std::wstring::npos) wcsncpy(newData.source, L"Spotify", 15);
+                                        else if (app.find(L"Chrome") != std::wstring::npos) wcsncpy(newData.source, L"Chrome", 15);
+                                        else if (app.find(L"Edge") != std::wstring::npos) wcsncpy(newData.source, L"Edge", 15);
+                                        else if (app.find(L"Video.UI") != std::wstring::npos) wcsncpy(newData.source, L"Media Player", 15);
+                                        else if (app.find(L"Music.UI") != std::wstring::npos) wcsncpy(newData.source, L"Music Player", 15);
+                                        else wcsncpy(newData.source, L"Media", 15);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // Fallback: try to detect title/source by scanning window titles.
-    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&newData));
+    // Fallback: try to detect title/source by scanning window titles (only if title is still empty).
+    if (wcslen(newData.title) == 0) {
+        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&newData));
+    }
 
     // Clean up the title for nicer display.
     std::wstring ts(newData.title);
