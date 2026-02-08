@@ -1,10 +1,13 @@
 #ifndef MEDIAMONITOR_H
 #define MEDIAMONITOR_H
 
+#include <functional>
+
 #include "BaseMonitor.h"
 #include <string>
 #include <windows.h>
 #include <mutex>
+#include <windows.media.control.h>
 
 /*
  * MediaMonitor (Windows Global System Media Transport Controls)
@@ -40,6 +43,7 @@ private:
 
     // Formats seconds into a string like "mm:ss" or "h:mm:ss".
     std::string formatTime(uint32_t seconds) const;
+    void executeMediaAction(std::function<HRESULT(ABI::Windows::Media::Control::IGlobalSystemMediaTransportControlsSession*)> action);
 
 public:
     MediaMonitor(int ms = 1000);
@@ -50,7 +54,11 @@ public:
 
     // Handles media commands from UI or NetworkReporter:
     // 1: Toggle Play/Pause, 2: Next, 3: Prev, 4/5: Seek +/- 10 seconds
-    void sendMediaCommand(int commandId);
+    void playpause();
+    void stop();
+    void next();
+    void prev();
+    void jump(uint16_t time);
 
     // Returns a copy of the current packet (thread-safe).
     MediaPacket getData() const {

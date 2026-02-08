@@ -59,6 +59,8 @@ private slots:
     // UI helpers for server state.
     void handleServerStarted();
     void handleServerStopped();
+    void handleServerOutput();
+    void handleServerError();
 
 private:
     // Create all widgets, layouts, and signal/slot connections.

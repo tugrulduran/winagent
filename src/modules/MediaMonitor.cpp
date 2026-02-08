@@ -152,53 +152,74 @@ void MediaMonitor::update() {
     currentData = newData;
 }
 
-void MediaMonitor::sendMediaCommand(int commandId) {
-    // Sends a media control command to the currently active media session.
+void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTransportControlsSession*)> action) {
     HRESULT hrInit = RoInitialize(RO_INIT_MULTITHREADED);
+
     ComPtr<IGlobalSystemMediaTransportControlsSessionManagerStatics> managerStatics;
-    if (SUCCEEDED(
-        RoGetActivationFactory(HStringReference(
-            RuntimeClass_Windows_Media_Control_GlobalSystemMediaTransportControlsSessionManager).Get(), __uuidof(
-            IGlobalSystemMediaTransportControlsSessionManagerStatics), &managerStatics))) {
-        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionManager *> > op;
+    if (SUCCEEDED(RoGetActivationFactory(
+        HStringReference(RuntimeClass_Windows_Media_Control_GlobalSystemMediaTransportControlsSessionManager).Get(),
+        IID_PPV_ARGS(&managerStatics)))) {
+
+        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionManager*>> op;
         if (SUCCEEDED(managerStatics->RequestAsync(&op))) {
+
+            // Asenkron bekleme (Basit senkron döngü)
             AsyncStatus status;
             ComPtr<IAsyncInfo> info;
             op.As(&info);
-            do {
-                info->get_Status(&status);
-                if (status == AsyncStatus::Started) Sleep(5);
-            } while (status == AsyncStatus::Started);
+            while (SUCCEEDED(info->get_Status(&status)) && status == AsyncStatus::Started) {
+                Sleep(5);
+            }
 
             if (status == AsyncStatus::Completed) {
                 ComPtr<IGlobalSystemMediaTransportControlsSessionManager> manager;
                 if (SUCCEEDED(op->GetResults(&manager)) && manager) {
                     ComPtr<IGlobalSystemMediaTransportControlsSession> session;
                     if (SUCCEEDED(manager->GetCurrentSession(&session)) && session) {
-                        ComPtr<IAsyncOperation<bool> > actionOp;
-                        if (commandId == 1) {
-                            session->TryTogglePlayPauseAsync(&actionOp);
-                        } else if (commandId == 2) { session->TrySkipNextAsync(&actionOp); } else if (commandId == 3) {
-                            session->TrySkipPreviousAsync(&actionOp);
-                        } else if (commandId == 4 || commandId == 5) {
-                            ComPtr<IGlobalSystemMediaTransportControlsSessionTimelineProperties> timeline;
-                            if (SUCCEEDED(session->GetTimelineProperties(&timeline))) {
-                                TimeSpan currentPos;
-                                if (SUCCEEDED(timeline->get_Position(&currentPos))) {
-                                    long long offset = 100000000LL; // 10 seconds in 100ns ticks
-                                    if (commandId == 5) offset *= -1;
-
-                                    long long requestedPos = currentPos.Duration + offset;
-                                    if (requestedPos < 0) requestedPos = 0;
-
-                                    session->TryChangePlaybackPositionAsync(requestedPos, &actionOp);
-                                }
-                            }
-                        }
+                        // İŞTE BURADA ASIL KOMUT ÇALIŞIYOR:
+                        action(session.Get());
                     }
                 }
             }
         }
-    }
-    if (hrInit == S_OK || hrInit == S_FALSE) RoUninitialize();
+        }
+
+    if (SUCCEEDED(hrInit)) RoUninitialize();
+}
+
+void MediaMonitor::playpause() {
+    executeMediaAction([](auto* session) {
+        ComPtr<IAsyncOperation<bool>> actionOp;
+        return session->TryTogglePlayPauseAsync(&actionOp);
+    });
+}
+
+void MediaMonitor::stop() {
+    executeMediaAction([](auto* session) {
+        ComPtr<IAsyncOperation<bool>> actionOp;
+        return session->TryStopAsync(&actionOp);
+    });
+}
+
+void MediaMonitor::next() {
+    executeMediaAction([](auto* session) {
+        ComPtr<IAsyncOperation<bool>> actionOp;
+        return session->TrySkipNextAsync(&actionOp);
+    });
+}
+
+void MediaMonitor::prev() {
+    executeMediaAction([](auto* session) {
+        ComPtr<IAsyncOperation<bool>> actionOp;
+        return session->TrySkipPreviousAsync(&actionOp);
+    });
+}
+
+void MediaMonitor::jump(uint16_t time) {
+    long long ticks = static_cast<long long>(time * 10000000LL);
+
+    executeMediaAction([ticks](auto* session) {
+        ComPtr<IAsyncOperation<bool>> actionOp;
+        return session->TryChangePlaybackPositionAsync(ticks, &actionOp);
+    });
 }

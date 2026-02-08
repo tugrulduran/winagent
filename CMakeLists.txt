@@ -64,4 +64,9 @@ target_link_libraries(WinAgent PRIVATE
 # If you want a pure GUI app without a console window, enable this:
 # set_target_properties(WinAgent PROPERTIES WIN32_EXECUTABLE TRUE)
 
+# Deployment logic
+install(TARGETS WinAgent
+        RUNTIME DESTINATION bin
+)
+
 add_compile_definitions(WIN32_LEAN_AND_MEAN)

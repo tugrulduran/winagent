@@ -145,6 +145,9 @@ void MainWindow::setupUI() {
     connect(btnServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
     connect(serverProcess, &QProcess::started, this, &MainWindow::handleServerStarted);
     connect(serverProcess, &QProcess::finished, this, &MainWindow::handleServerStopped);
+    // Okunabilir veri geldiğinde tetiklenir
+    connect(serverProcess, &QProcess::readyReadStandardOutput, this, &MainWindow::handleServerOutput);
+    connect(serverProcess, &QProcess::readyReadStandardError, this, &MainWindow::handleServerError);
 
     connect(btnClear, &QPushButton::clicked, this, &MainWindow::clearLogs);
     connect(btnRefresh, &QPushButton::clicked, this, &MainWindow::runMonitorCycle);
@@ -237,6 +240,26 @@ void MainWindow::handleServerStopped() {
     btnServer->setText("Start UDP Server");
     statusDot->setStyleSheet("background-color: red; border-radius: 6px;");
     debugLog->appendHtml("<b style='color: red;'>[SERVER] UDP Server Stopped.</b>");
+}
+
+void MainWindow::handleServerOutput() {
+    // Node.js console.log çıktılarını yakalar
+    QByteArray data = serverProcess->readAllStandardOutput();
+    QString output = QString::fromUtf8(data).trimmed();
+
+    if (!output.isEmpty()) {
+        debugLog->appendHtml(QString("<span style='color: #ffffff;'>[NODE] %1</span>").arg(output.toHtmlEscaped()));
+    }
+}
+
+void MainWindow::handleServerError() {
+    // Node.js hata çıktılarını (crash veya console.error) yakalar
+    QByteArray data = serverProcess->readAllStandardError();
+    QString error = QString::fromUtf8(data).trimmed();
+
+    if (!error.isEmpty()) {
+        debugLog->appendHtml(QString("<span style='color: #ff5555;'>[NODE ERROR] %1</span>").arg(error.toHtmlEscaped()));
+    }
 }
 
 void MainWindow::runMonitorCycle() {

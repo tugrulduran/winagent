@@ -47,55 +47,85 @@ void NetworkReporter::run() {
 }
 
 void NetworkReporter::listenForCommands() {
-    // COM is needed for some audio / media related calls on Windows.
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    // MTA arka plan threadleri için daha stabildir
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-    // UDP socket used only for listening to commands (port 5001).
     cmdSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    // Soket zaman aşımı ekle (Böylece listenerActive kontrolü için recvfrom periyodik olarak uyanır)
+    DWORD timeout = 1000; // 1 saniye
+    setsockopt(cmdSock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+
     sockaddr_in localAddr;
     localAddr.sin_family = AF_INET;
     localAddr.sin_addr.s_addr = INADDR_ANY;
     localAddr.sin_port = htons(5001);
 
-    if (bind(cmdSock, (sockaddr *)&localAddr, sizeof(localAddr)) != SOCKET_ERROR) {
+    if (bind(cmdSock, (sockaddr *) &localAddr, sizeof(localAddr)) != SOCKET_ERROR) {
         while (listenerActive) {
-            char cmdBuffer[8];
-            int bytesReceived = recvfrom(cmdSock, cmdBuffer, 8, 0, NULL, NULL);
-            if (!listenerActive || bytesReceived == SOCKET_ERROR) break;
+            char cmdBuffer[16];
+            int bytesReceived = recvfrom(cmdSock, cmdBuffer, sizeof(cmdBuffer), 0, NULL, NULL);
 
-            // Command packet format (8 bytes):
-            // - first 4 bytes: targetPid (uint32)
-            // - next 4 bytes: float value
-            if (bytesReceived == 8) {
-                uint32_t targetPid;
-                float dataVal;
-                memcpy(&targetPid, cmdBuffer, 4);
-                memcpy(&dataVal, cmdBuffer + 4, 4);
+            if (!listenerActive) break;
 
-                // Special PID values are used as "command namespaces".
-                if (targetPid == 0xFFFFFFFF) {
-                    std::string cmdName;
-                    int cmdId = (int)dataVal;
-                    if (cmdId == 1) cmdName = "PLAY/PAUSE";
-                    else if (cmdId == 2) cmdName = "NEXT";
-                    else if (cmdId == 3) cmdName = "PREV";
+            if (bytesReceived == 16) {
+                auto* data = reinterpret_cast<const ControlPacket*>(cmdBuffer);
+                char hexLog[128];
+                snprintf(hexLog, sizeof(hexLog),
+                    "[DATA] 0x%02X 0x%02X 0x%04X 0x%08X 0x%08X 0x%08X",
+                    data->moduleId,
+                    data->commandId,
+                    data->subCommand,
+                    data->data1,
+                    data->data2,
+                    data->data3);
 
-                    log("[REPORTER] Media Command Received: " + cmdName);
-                    if (mediaPtr) mediaPtr->sendMediaCommand(cmdId);
+                log(std::string(hexLog)); // Mevcut log metoduna gönder
+
+                if (data->moduleId == MODULE_MEDIA && mediaPtr) {
+                    log("[MEDIA] Received command: " + std::to_string(data->commandId) + " Data: " + std::to_string(data->data1));
+
+                    switch(data->commandId) {
+                        case MEDIA_CMD_PLAY:
+                        case MEDIA_CMD_PAUSE:
+                            mediaPtr->playpause();
+                            break;
+                        case MEDIA_CMD_NEXT:
+                            mediaPtr->next();
+                            break;
+                        case MEDIA_CMD_PREV:
+                            mediaPtr->prev();
+                            break;
+                        case MEDIA_CMD_JUMP:
+                            mediaPtr->jump(data->data1);
+                            break;
+                    }
                 }
-                else if (targetPid == 0xFFFFFFFE) {
-                    log("[REPORTER] Audio Device Switching: Index " + std::to_string((int)dataVal));
-                    AudioDeviceSwitcher::setDefaultByIndex((int)dataVal);
+                else if (data->moduleId == MODULE_AUDIO && audioPtr) {
+                    log("[AUDIO] Received command: " + std::to_string(data->commandId) + " Data: " + std::to_string(data->data1));
+
+                    switch (data->commandId) {
+                        case AUDIO_CMD_TOGGLE_MUTE:
+                            log("[AUDIO] Toggling mute !NOT IMPLEMENTED");
+                            break;
+                        case AUDIO_CMD_SET_DEVICE:
+                            log("[AUDIO] Setting device to " + std::to_string(data->data1));
+                            AudioDeviceSwitcher::setDefaultByIndex(data->data1);
+                            break;
+                        case AUDIO_CMD_SET_APP_VOLUME:
+                            log("[AUDIO] Setting app (PID:" + std::to_string(data->data1) + ") volume to " + std::to_string(data->data2));
+                            audioPtr->setVolumeByPID(data->data1, data->data2 / 100.0f);
+                            break;
+                    }
                 }
-                else {
-                    log("[REPORTER] Audio Adjustment - PID: " + std::to_string(targetPid) + " Level: %" + std::to_string((int)(dataVal * 100)));
-                    if (audioPtr) audioPtr->setVolumeByPID(targetPid, dataVal);
-                }
-            } else {
-                log("[REPORTER] Invalid packet size: " + std::to_string(bytesReceived) + " byte");
+            } else if (bytesReceived == SOCKET_ERROR) {
+                int err = WSAGetLastError();
+                if (err != WSAETIMEDOUT) { /* log error */ }
             }
         }
     }
+
+    closesocket(cmdSock);
     CoUninitialize();
 }
 
@@ -110,11 +140,11 @@ void NetworkReporter::sendData() {
 
     // Build variable-length sub-packets.
     std::vector<InterfacePacket> netPackets;
-    for (const auto &f : netIfaces)
-        netPackets.push_back({(float)f.speedInKB, (float)f.speedOutKB});
+    for (const auto &f: netIfaces)
+        netPackets.push_back({(float) f.speedInKB, (float) f.speedOutKB});
 
     std::vector<AudioPacket> audioPackets;
-    for (const auto &app : audioSnap.apps) {
+    for (const auto &app: audioSnap.apps) {
         AudioPacket p;
         p.pid = app.pid;
         p.volume = app.volume;
@@ -124,9 +154,9 @@ void NetworkReporter::sendData() {
     }
 
     std::vector<AudioDevicePacket> devicePackets;
-    for (const auto &d : audioDevices) {
+    for (const auto &d: audioDevices) {
         AudioDevicePacket p;
-        p.index = (uint8_t)d.index;
+        p.index = (uint8_t) d.index;
         p.isDefault = d.isDefault ? 1 : 0;
         memset(p.name, 0, sizeof(p.name));
         wcsncpy_s(p.name, _countof(p.name), d.name.c_str(), _TRUNCATE);
@@ -136,13 +166,13 @@ void NetworkReporter::sendData() {
     // Fill the header (counts tell the receiver how to parse the payload).
     FullMonitorPacketExtended header;
     header.id = ++currentId;
-    header.cpu = (float)cpuData.load;
-    header.ramUsed = (float)ramData.usedGB;
-    header.ramPerc = (uint8_t)ramData.usagePercentage;
-    header.netCount = (uint8_t)netPackets.size();
-    header.audioCount = (uint8_t)audioPackets.size();
+    header.cpu = (float) cpuData.load;
+    header.ramUsed = (float) ramData.usedGB;
+    header.ramPerc = (uint8_t) ramData.usagePercentage;
+    header.netCount = (uint8_t) netPackets.size();
+    header.audioCount = (uint8_t) audioPackets.size();
     header.hasMedia = (wcslen(mediaData.title) > 0) ? 1 : 0;
-    header.deviceCount = (uint8_t)devicePackets.size();
+    header.deviceCount = (uint8_t) devicePackets.size();
 
     // Allocate one contiguous buffer: [header][net...][audio...][media?][devices...]
     size_t netSize = netPackets.size() * sizeof(InterfacePacket);
@@ -154,12 +184,25 @@ void NetworkReporter::sendData() {
     std::vector<char> buffer(totalSize);
     size_t offset = 0;
 
-    memcpy(buffer.data() + offset, &header, sizeof(header)); offset += sizeof(header);
-    if (!netPackets.empty()) { memcpy(buffer.data() + offset, netPackets.data(), netSize); offset += netSize; }
-    if (!audioPackets.empty()) { memcpy(buffer.data() + offset, audioPackets.data(), audioSize); offset += audioSize; }
-    if (header.hasMedia) { memcpy(buffer.data() + offset, &mediaData, sizeof(MediaPacket)); offset += mediaSize; }
-    if (!devicePackets.empty()) { memcpy(buffer.data() + offset, devicePackets.data(), devicesSize); offset += devicesSize; }
+    memcpy(buffer.data() + offset, &header, sizeof(header));
+    offset += sizeof(header);
+    if (!netPackets.empty()) {
+        memcpy(buffer.data() + offset, netPackets.data(), netSize);
+        offset += netSize;
+    }
+    if (!audioPackets.empty()) {
+        memcpy(buffer.data() + offset, audioPackets.data(), audioSize);
+        offset += audioSize;
+    }
+    if (header.hasMedia) {
+        memcpy(buffer.data() + offset, &mediaData, sizeof(MediaPacket));
+        offset += mediaSize;
+    }
+    if (!devicePackets.empty()) {
+        memcpy(buffer.data() + offset, devicePackets.data(), devicesSize);
+        offset += devicesSize;
+    }
 
     // Send packet to server (UDP).
-    sendto(sock, buffer.data(), (int)buffer.size(), 0, (sockaddr *)&serverAddr, sizeof(serverAddr));
+    sendto(sock, buffer.data(), (int) buffer.size(), 0, (sockaddr *) &serverAddr, sizeof(serverAddr));
 }

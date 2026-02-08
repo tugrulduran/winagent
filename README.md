@@ -60,8 +60,9 @@ The agent communicates using a compact binary format to minimize bandwidth. Data
 
 ---
 
-## 🛠️ Build Requirements
+## 🛠️ Build & Deployment
 
+### Build Requirements
 *   **Operating System**: Windows 10 or 11.
 *   **Compiler**: A C++20 compatible compiler (MSVC recommended).
 *   **Build System**: CMake 3.28+.
@@ -75,7 +76,20 @@ cmake ..
 cmake --build . --config Release
 ```
 
+### 📦 Deployment (Running on other PCs)
+To run the compiled `WinAgent.exe` on a computer that doesn't have Qt installed, you need to bundle the required libraries:
+
+1.  **Visual C++ Redistributable**: Ensure the target machine has the latest [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed.
+2.  **Qt Deployment**: Use the `windeployqt` tool (included with your Qt installation) to copy the necessary DLLs and plugins to your executable's folder.
+    ```powershell
+    # Navigate to your Release folder
+    cd build/Release
+    # Run windeployqt
+    windeployqt.exe WinAgent.exe
+    ```
+3.  **Distribute**: You can now copy the entire folder (containing the `.exe` and all the `.dll` files) to any other Windows PC.
+
 ---
 
 ## 📄 License
-This project is licensed under the terms provided in [src/LICENCE.txt](LICENCE.txt).
+This project is licensed under the terms provided in [LICENCE.txt](LICENCE.txt).
