@@ -153,9 +153,17 @@ void MediaMonitor::update() {
                                     session->get_SourceAppUserModelId(appId.GetAddressOf());
 
                                     if (title.GetRawBuffer(nullptr)) {
-                                        wcsncpy(newData.title, title.GetRawBuffer(nullptr), 63);
+                                        std::wstring fullTitle(title.GetRawBuffer(nullptr));
+                                        // Special handling for Kick streams
+                                        size_t kickPos = fullTitle.find(L" Stream - Watch Live on Kick");
+                                        if (kickPos != std::wstring::npos) {
+                                            wcsncpy(newData.source, L"Kick", 15);
+                                            wcsncpy(newData.title, fullTitle.substr(0, kickPos).c_str(), 63);
+                                        } else {
+                                            wcsncpy(newData.title, fullTitle.c_str(), 63);
+                                        }
                                     }
-                                    if (appId.GetRawBuffer(nullptr)) {
+                                    if (wcslen(newData.source) == 0 && appId.GetRawBuffer(nullptr)) {
                                         std::wstring app(appId.GetRawBuffer(nullptr));
                                         if (app.find(L"Spotify") != std::wstring::npos) wcsncpy(newData.source, L"Spotify", 15);
                                         else if (app.find(L"Chrome") != std::wstring::npos) wcsncpy(newData.source, L"Chrome", 15);
