@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include "BaseMonitor.h"
+#include "modules/AudezeMonitor.h"
 #include "modules/CPUMonitor.h"
 #include "modules/MemoryMonitor.h"
 #include "modules/MediaMonitor.h"
@@ -22,7 +23,7 @@
  * - MainWindow does not need to know constructor details.
  * - Adding a new module becomes a small, localized change.
  */
-enum class ModuleType { CPU, RAM, MEDIA, NETWORK, AUDIO, PROCESS };
+enum class ModuleType { CPU, RAM, MEDIA, NETWORK, AUDIO, PROCESS, AUDEZE };
 
 class ModuleFactory {
 public:
@@ -40,6 +41,8 @@ public:
                 return std::make_unique<AudioMonitor>(1000);
             case ModuleType::PROCESS:
                 return std::make_unique<ProcessMonitor>(5000);
+            case ModuleType::AUDEZE:
+                return std::make_unique<AudezeMonitor>(60000);
             default:
                 return nullptr;
         }
@@ -54,6 +57,7 @@ public:
         monitors.push_back(create_module(ModuleType::NETWORK));
         monitors.push_back(create_module(ModuleType::AUDIO));
         monitors.push_back(create_module(ModuleType::PROCESS));
+        monitors.push_back(create_module(ModuleType::AUDEZE));
 
         return monitors;
     }

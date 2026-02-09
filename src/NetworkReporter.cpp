@@ -4,8 +4,8 @@
 #include "modules/AudioDeviceSwitcher.h"
 
 NetworkReporter::NetworkReporter(const std::string &ip, int port, int ms,
-                                 CPUMonitor *c, MemoryMonitor *r, NetworkBytes *n, AudioMonitor *a, MediaMonitor *m)
-    : intervalMs(ms), cpuPtr(c), ramPtr(r), netPtr(n), audioPtr(a), mediaPtr(m),
+                                 CPUMonitor *c, MemoryMonitor *r, NetworkBytes *n, AudioMonitor *a, MediaMonitor *m, AudezeMonitor *audeze)
+    : intervalMs(ms), cpuPtr(c), ramPtr(r), netPtr(n), audioPtr(a), mediaPtr(m), audezePtr(audeze),
       sock(INVALID_SOCKET), cmdSock(INVALID_SOCKET) {
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -133,6 +133,7 @@ void NetworkReporter::sendData() {
     // Read the latest snapshot from each monitor (each getData() returns a safe copy).
     CPUData cpuData = cpuPtr->getData();
     MemoryData ramData = ramPtr->getData();
+    AudezeData audezeData = audezePtr->getData();
     auto netIfaces = netPtr->getData();
     AudioSnapshot audioSnap = audioPtr->getData();
     MediaPacket mediaData = mediaPtr->getData();
@@ -173,6 +174,7 @@ void NetworkReporter::sendData() {
     header.audioCount = (uint8_t) audioPackets.size();
     header.hasMedia = (wcslen(mediaData.title) > 0) ? 1 : 0;
     header.deviceCount = (uint8_t) devicePackets.size();
+    header.audezeBattery = (uint8_t) audezeData.batteryLevel;
 
     // Allocate one contiguous buffer: [header][net...][audio...][media?][devices...]
     size_t netSize = netPackets.size() * sizeof(InterfacePacket);

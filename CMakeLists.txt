@@ -41,6 +41,8 @@ add_executable(WinAgent
         include/MainWindow.h
         src/MainWindow.cpp
         include/modules/ProcessMonitor.h
+        include/modules/AudezeMonitor.h
+        src/modules/AudezeMonitor.cpp
 )
 
 # Link against Qt and Windows system libraries used by different monitors.
@@ -59,6 +61,8 @@ target_link_libraries(WinAgent PRIVATE
         user32
         advapi32
         uuid
+        hidapi
+        setupapi
 )
 
 # If you want a pure GUI app without a console window, enable this:

@@ -9,6 +9,7 @@
 #include <string>
 #include <functional>
 
+#include "modules/AudezeMonitor.h"
 #include "modules/CPUMonitor.h"
 #include "modules/MemoryMonitor.h"
 #include "modules/NetworkBytes.h"
@@ -56,6 +57,7 @@ struct FullMonitorPacketExtended {
     uint8_t audioCount;
     uint8_t hasMedia;
     uint8_t deviceCount;
+    uint8_t audezeBattery;
 };
 #pragma pack(pop)
 
@@ -104,7 +106,7 @@ struct ControlPacket {
 class NetworkReporter {
 public:
     NetworkReporter(const std::string &ip, int port, int ms,
-                    CPUMonitor *c, MemoryMonitor *r, NetworkBytes *n, AudioMonitor *a, MediaMonitor *m);
+                    CPUMonitor *c, MemoryMonitor *r, NetworkBytes *n, AudioMonitor *a, MediaMonitor *m, AudezeMonitor *audeze);
 
     ~NetworkReporter();
 
@@ -133,6 +135,7 @@ private:
     NetworkBytes *netPtr;
     AudioMonitor *audioPtr;
     MediaMonitor *mediaPtr;
+    AudezeMonitor *audezePtr;
 
     void run();
 

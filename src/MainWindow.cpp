@@ -32,7 +32,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), isServerRunning(f
         findMonitor<MemoryMonitor>(),
         findMonitor<NetworkBytes>(),
         findMonitor<AudioMonitor>(),
-        findMonitor<MediaMonitor>()
+        findMonitor<MediaMonitor>(),
+        findMonitor<AudezeMonitor>()
     );
 
     // Forward reporter log messages into the UI log widget.
@@ -295,6 +296,12 @@ void MainWindow::runMonitorCycle() {
             int active = 0;
             for (auto &app : m->getData().apps) if (app.volume > 0) active++;
             lblAudioApps->setText(QString("Active Audio Channels: %1").arg(active));
+        }
+        else if (auto m = dynamic_cast<AudezeMonitor*>(monitor.get())) {
+            // Simple "active channel" count: how many apps currently have volume > 0.
+            int active = 0;
+            // for (auto &app : m->getData().apps) if (app.volume > 0) active++;
+            lblAudioApps->setText(QString("Headset battery: %1").arg(m->getData().batteryLevel));
         }
         else if (auto m = dynamic_cast<ProcessMonitor*>(monitor.get())) {
             // Show the foreground application and select an icon based on filename.
