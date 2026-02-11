@@ -5,6 +5,8 @@
 #include <atomic>
 #include <chrono>
 
+#include "Dashboard.h"
+
 /*
  * BaseMonitor
  * ----------
@@ -20,22 +22,14 @@
  * - getData() (in derived classes) should lock a mutex and return a copy.
  */
 class BaseMonitor {
-protected:
-    std::atomic<bool> active{false};
-    std::thread workerThread;
-    int intervalMs;
-
-    // Worker loop. Derived classes normally do not override this.
-    virtual void run() {
-        while (active) {
-            update();
-            std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
-        }
-    }
-
 public:
     // ms = update interval in milliseconds.
-    BaseMonitor(int ms) : intervalMs(ms) {}
+    BaseMonitor(int ms)
+        : intervalMs(ms), dashboard_(nullptr) {}
+
+    BaseMonitor(int ms, Dashboard& dashboard)
+        : intervalMs(ms), dashboard_(&dashboard) {}
+
     virtual ~BaseMonitor() { stop(); }
 
     // Called once at start(). Use this to create OS handles, queries, etc.
@@ -58,6 +52,20 @@ public:
         active = false;
         if (workerThread.joinable()) {
             workerThread.join();
+        }
+    }
+
+protected:
+    std::atomic<bool> active{false};
+    std::thread workerThread;
+    int intervalMs;
+    Dashboard* dashboard_;
+
+    // Worker loop. Derived classes normally do not override this.
+    virtual void run() {
+        while (active) {
+            update();
+            std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
         }
     }
 };

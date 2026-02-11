@@ -1,39 +1,21 @@
+#include <windows.h>
 #include "modules/MemoryMonitor.h"
 
-MemoryMonitor::MemoryMonitor(int interval) : BaseMonitor(interval) {}
-
-MemoryMonitor::~MemoryMonitor() {
-    stop();
-}
-
 void MemoryMonitor::init() {
-    MEMORYSTATUSEX memInfo;
+    MEMORYSTATUSEX memInfo{};
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
 
-    // Read total RAM once at startup.
     if (GlobalMemoryStatusEx(&memInfo)) {
-        std::lock_guard<std::mutex> lock(dataMutex);
-        data.totalGB = static_cast<double>(memInfo.ullTotalPhys) / (1024.0 * 1024.0 * 1024.0);
+        dashboard_->data.memory.setTotal(memInfo.ullTotalPhys);
     }
 }
 
 void MemoryMonitor::update() {
-    MEMORYSTATUSEX memInfo;
+    MEMORYSTATUSEX memInfo{};
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
 
     if (GlobalMemoryStatusEx(&memInfo)) {
-        std::lock_guard<std::mutex> lock(dataMutex);
-
-        data.usagePercentage = static_cast<int>(memInfo.dwMemoryLoad);
-
-        // Used = Total - Available.
-        unsigned long long usedBytes = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
-        data.usedGB = static_cast<double>(usedBytes) / (1024.0 * 1024.0 * 1024.0);
-        data.freeGB = static_cast<double>(memInfo.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0);
+        const auto usedBytes = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
+        dashboard_->data.memory.setUsed(usedBytes);
     }
-}
-
-MemoryData MemoryMonitor::getData() const {
-    std::lock_guard<std::mutex> lock(dataMutex);
-    return data;
 }

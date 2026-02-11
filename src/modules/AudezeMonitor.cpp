@@ -1,14 +1,7 @@
-#include "modules/AudezeMonitor.h"
 #include <thread>
 #include <chrono>
 #include <algorithm>
-
-AudezeMonitor::AudezeMonitor(int interval) : BaseMonitor(interval) {}
-
-AudezeMonitor::~AudezeMonitor() {
-    stop();
-    hid_exit();
-}
+#include "modules/AudezeMonitor.h"
 
 void AudezeMonitor::init() {
     hid_init();
@@ -57,9 +50,7 @@ void AudezeMonitor::update() {
     std::string path = findDevicePath();
     
     if (path.empty()) {
-        std::lock_guard<std::mutex> lock(dataMutex);
-        data.isConnected = false;
-        data.batteryLevel = -1;
+        dashboard_->data.audeze.setBattery(0xFF);
         return;
     }
 
@@ -119,12 +110,5 @@ void AudezeMonitor::update() {
 
     hid_close(handle);
 
-    std::lock_guard<std::mutex> lock(dataMutex);
-    data.isConnected = true;
-    data.batteryLevel = battery;
-}
-
-AudezeData AudezeMonitor::getData() const {
-    std::lock_guard<std::mutex> lock(dataMutex);
-    return data;
+    dashboard_->data.audeze.setBattery(battery);
 }

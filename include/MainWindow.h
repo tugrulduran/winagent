@@ -10,15 +10,17 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QProcess>
+#include <QThread>
 #include <memory>
 #include <vector>
 
 #include "BaseMonitor.h"
-#include "NetworkReporter.h"
+#include "DashboardServer.h"
+#include "DashboardWebSocketServer.h"
 
 class CPUMonitor;
 class MemoryMonitor;
-class NetworkBytes;
+class NetworkMonitor;
 class AudioMonitor;
 class MediaMonitor;
 class ProcessMonitor;
@@ -45,6 +47,16 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    DashboardWebSocketServer* wsServer = nullptr;
+
+public slots:
+    void startDashboardServer();
+    void stopDashboardServer();
+
+signals:
+    void dashboardServerStarted();
+    void dashboardServerStopped();
+    void dashboardServerError(const QString& msg);
 
 private slots:
     // Refresh the UI from the latest monitor data.
@@ -56,18 +68,12 @@ private slots:
     // Start/stop the Node.js UDP server process.
     void toggleServer();
 
-    // UI helpers for server state.
-    void handleServerStarted();
-    void handleServerStopped();
-    void handleServerOutput();
-    void handleServerError();
-
 private:
+    std::atomic_bool m_serverRunning{false};
+
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
-
-    // Best-effort cleanup: kill the process that is holding a UDP port (Windows).
-    void cleanupPort(int port);
+    Dashboard& dashboard_ = Dashboard::instance();
 
     // UI - Dashboard
     QLabel *lblCpu;
@@ -91,7 +97,6 @@ private:
 
     // Worker modules + UDP reporter
     std::vector<std::unique_ptr<BaseMonitor>> monitors;
-    std::unique_ptr<NetworkReporter> reporter;
 
     // Triggers UI refresh periodically
     QTimer *cycleTimer;
@@ -104,6 +109,9 @@ private:
         }
         return nullptr;
     }
+
+    QThread m_DashboardServerThread;
+    DashboardServer* m_DashboardServer = nullptr;
 
 protected:
     // Called when the window is closing; used to stop threads/processes cleanly.

@@ -1,12 +1,17 @@
-#include "modules/AudioMonitor.h"
+#include <windows.h>
+#include <mmdeviceapi.h>
+#include <audiopolicy.h>
+#include <endpointvolume.h>
+#include <vector>
 #include <psapi.h>
 #include <shlwapi.h>
 #include <algorithm>
+#include "modules/AudioMonitor.h"
+#include <windows.h>
+#include <tlhelp32.h>
 
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
-
-AudioMonitor::AudioMonitor(int interval) : BaseMonitor(interval) {}
 
 AudioMonitor::~AudioMonitor() {
     stop();
@@ -14,16 +19,7 @@ AudioMonitor::~AudioMonitor() {
 }
 
 void AudioMonitor::init() {
-    // Initialize COM for this thread. Core Audio uses COM interfaces.
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
-}
-
-bool AudioMonitor::IsIgnored(const std::wstring& name) {
-    // Simple substring match against ignoreList.
-    for (const auto& ignored : ignoreList) {
-        if (name.find(ignored) != std::wstring::npos) return true;
-    }
-    return false;
 }
 
 std::wstring AudioMonitor::GetFriendlyName(const std::wstring &filePath) {
@@ -34,50 +30,57 @@ std::wstring AudioMonitor::GetFriendlyName(const std::wstring &filePath) {
     std::vector<BYTE> buffer(size);
     if (!GetFileVersionInfoW(filePath.c_str(), 0, size, &buffer[0])) return L"";
 
-    struct LANGANDCODEPAGE { WORD wLanguage; WORD wCodePage; } *lpTranslate;
+    struct LANGANDCODEPAGE {
+        WORD wLanguage;
+        WORD wCodePage;
+    } *lpTranslate;
     UINT cbTranslate;
 
-    if (VerQueryValueW(&buffer[0], L"\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &cbTranslate)) {
+    if (VerQueryValueW(&buffer[0], L"\\VarFileInfo\\Translation", (LPVOID *) &lpTranslate, &cbTranslate)) {
         wchar_t subBlock[256];
-        swprintf_s(subBlock, L"\\StringFileInfo\\%04x%04x\\ProductName", lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
+        swprintf_s(subBlock, L"\\StringFileInfo\\%04x%04x\\ProductName", lpTranslate[0].wLanguage,
+                   lpTranslate[0].wCodePage);
         wchar_t *productName = nullptr;
         UINT productNameLen = 0;
-        if (VerQueryValueW(&buffer[0], subBlock, (LPVOID*)&productName, &productNameLen) && productNameLen > 0)
+        if (VerQueryValueW(&buffer[0], subBlock, (LPVOID *) &productName, &productNameLen) && productNameLen > 0)
             return productName;
     }
     return L"";
 }
 
 void AudioMonitor::update() {
-    // Reads:
-    // 1) system master volume
-    // 2) audio sessions (apps) and their per-session volume
-
     IMMDeviceEnumerator *pEnumerator = NULL;
     IMMDevice *pDevice = NULL;
     IAudioSessionManager2 *pSessionManager = NULL;
     IAudioSessionEnumerator *pSessionEnumerator = NULL;
     IAudioEndpointVolume *pEndpointVolume = NULL;
 
-    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
+    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                     __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
     if (!pEnumerator) return;
 
     pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
-    if (!pDevice) { pEnumerator->Release(); return; }
+    if (!pDevice) {
+        pEnumerator->Release();
+        return;
+    }
 
-    AudioSnapshot newSnapshot;
+    std::unordered_set<uint64_t> aliveApps;
+    AudioSnapshot masterData;
 
-    // Read master volume (system output volume).
-    pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&pEndpointVolume);
+    pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void **) &pEndpointVolume);
     if (pEndpointVolume) {
-        pEndpointVolume->GetMasterVolumeLevelScalar(&newSnapshot.masterVolume);
-        BOOL m; pEndpointVolume->GetMute(&m);
-        newSnapshot.masterMuted = m;
+        float volume;
+        BOOL muted;
+        pEndpointVolume->GetMasterVolumeLevelScalar(&volume);
+        pEndpointVolume->GetMute(&muted);
         pEndpointVolume->Release();
+
+        dashboard_->data.audio.apps.add(0xFFFFFFFF, L"MASTER VOLUME", volume, muted);
     }
 
     // Enumerate per-application audio sessions.
-    pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void**)&pSessionManager);
+    pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void **) &pSessionManager);
     if (pSessionManager) {
         pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
         int sessionCount = 0;
@@ -89,14 +92,13 @@ void AudioMonitor::update() {
             ISimpleAudioVolume *pVolCtrl = NULL;
 
             pSessionEnumerator->GetSession(i, &pSessionCtrl);
-            pSessionCtrl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionCtrl2);
-            pSessionCtrl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pVolCtrl);
+            pSessionCtrl->QueryInterface(__uuidof(IAudioSessionControl2), (void **) &pSessionCtrl2);
+            pSessionCtrl->QueryInterface(__uuidof(ISimpleAudioVolume), (void **) &pVolCtrl);
 
             DWORD pid = 0;
             pSessionCtrl2->GetProcessId(&pid);
             std::wstring finalName = L"System Sounds";
 
-            // If PID is known, try to resolve EXE path and a friendly ProductName.
             if (pid != 0) {
                 HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
                 if (hProc) {
@@ -109,32 +111,35 @@ void AudioMonitor::update() {
                 }
             }
 
-            // Store session volume/mute unless this app is in the ignore list.
             if (!IsIgnored(finalName)) {
-                float vol = 0; BOOL mute = FALSE;
-                pVolCtrl->GetMasterVolume(&vol);
-                pVolCtrl->GetMute(&mute);
-                newSnapshot.apps.push_back({(uint32_t)pid, finalName, vol, (bool)mute});
+                float volume = 0.0f;
+                BOOL muted = FALSE;
+
+                pVolCtrl->GetMasterVolume(&volume);
+                pVolCtrl->GetMute(&muted);
+
+                aliveApps.insert(pid);
+
+                dashboard_->data.audio.apps.add(
+                    pid,
+                    finalName,
+                    volume,
+                    muted
+                );
             }
 
-            pVolCtrl->Release(); pSessionCtrl2->Release(); pSessionCtrl->Release();
+            pVolCtrl->Release();
+            pSessionCtrl2->Release();
+            pSessionCtrl->Release();
         }
         pSessionEnumerator->Release();
         pSessionManager->Release();
-    }
 
-    // Publish the snapshot safely.
-    std::lock_guard<std::mutex> lock(dataMutex);
-    currentSnapshot = std::move(newSnapshot);
+        dashboard_->data.audio.apps.removeMissing(aliveApps);
+    }
 
     pDevice->Release();
     pEnumerator->Release();
-}
-
-AudioSnapshot AudioMonitor::getData() const {
-    // Return a copy so callers do not need to hold the mutex.
-    std::lock_guard<std::mutex> lock(dataMutex);
-    return currentSnapshot;
 }
 
 void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
@@ -143,50 +148,73 @@ void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
     if (newVolume > 1.0f) newVolume = 1.0f;
 
     // Find the audio session whose process id matches targetPid, then set its volume.
-    IMMDeviceEnumerator* pEnumerator = NULL;
-    IMMDevice* pDevice = NULL;
-    IAudioSessionManager2* pSessionManager = NULL;
-    IAudioSessionEnumerator* pSessionEnumerator = NULL;
+    IMMDeviceEnumerator *pEnumerator = NULL;
+    IMMDevice *pDevice = NULL;
+    IAudioSessionManager2 *pSessionManager = NULL;
+    IAudioSessionEnumerator *pSessionEnumerator = NULL;
 
-    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
+    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
+                     (void **) &pEnumerator);
     pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
-    pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void**)&pSessionManager);
-    pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
 
-    int count = 0;
-    pSessionEnumerator->GetCount(&count);
+    // --- MASTER VOLUME ---
+    if (targetPid == 0xFFFFFFFF) {
+        IAudioEndpointVolume *pEndpointVolume = NULL;
+        pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void **) &pEndpointVolume);
+        if (pEndpointVolume) {
+            pEndpointVolume->SetMasterVolumeLevelScalar(newVolume, NULL);
+            pEndpointVolume->Release();
+        }
+    }
+    // --- APP VOLUMES ---
+    else {
+        pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void **) &pSessionManager);
+        pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
 
-    for (int i = 0; i < count; i++) {
-        IAudioSessionControl* pSessionControl = NULL;
-        IAudioSessionControl2* pSessionControl2 = NULL;
+        int count = 0;
+        pSessionEnumerator->GetCount(&count);
 
-        pSessionEnumerator->GetSession(i, &pSessionControl);
-        pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2);
+        for (int i = 0; i < count; i++) {
+            IAudioSessionControl *pSessionControl = NULL;
+            IAudioSessionControl2 *pSessionControl2 = NULL;
 
-        DWORD currentPid = 0;
-        pSessionControl2->GetProcessId(&currentPid);
+            pSessionEnumerator->GetSession(i, &pSessionControl);
+            pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void **) &pSessionControl2);
 
-        // Match by numeric PID.
-        if (currentPid == targetPid) {
-            ISimpleAudioVolume* pVolumeControl = NULL;
-            pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pVolumeControl);
-            if (pVolumeControl) {
-                pVolumeControl->SetMasterVolume(newVolume, NULL);
-                pVolumeControl->Release();
+            DWORD currentPid = 0;
+            pSessionControl2->GetProcessId(&currentPid);
+
+            // Match by numeric PID.
+            if (currentPid == targetPid) {
+                ISimpleAudioVolume *pVolumeControl = NULL;
+                pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void **) &pVolumeControl);
+                if (pVolumeControl) {
+                    pVolumeControl->SetMasterVolume(newVolume, NULL);
+                    pVolumeControl->Release();
+                }
+
+                // Target found; stop scanning sessions.
+                pSessionControl2->Release();
+                pSessionControl->Release();
+                break;
             }
 
-            // Target found; stop scanning sessions.
             pSessionControl2->Release();
             pSessionControl->Release();
-            break;
         }
 
-        pSessionControl2->Release();
-        pSessionControl->Release();
+        if (pSessionEnumerator) pSessionEnumerator->Release();
+        if (pSessionManager) pSessionManager->Release();
     }
 
-    if (pSessionEnumerator) pSessionEnumerator->Release();
-    if (pSessionManager) pSessionManager->Release();
     if (pDevice) pDevice->Release();
     if (pEnumerator) pEnumerator->Release();
 }
+
+bool AudioMonitor::IsIgnored(const std::wstring& name) {
+    for (const auto& ignored : ignoreList) {
+        if (name.find(ignored) != std::wstring::npos) return true;
+    }
+    return false;
+}
+

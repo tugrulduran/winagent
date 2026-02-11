@@ -14,7 +14,7 @@ set(CMAKE_AUTORCC ON)
 # Qt modules used by this app:
 # - Widgets: UI (QMainWindow, QLabel, QPushButton, ...)
 # - Network: networking helpers (some parts still use WinSock directly)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network HttpServer WebSockets)
 
 include_directories(include)
 
@@ -22,33 +22,45 @@ include_directories(include)
 # Note: headers are listed so IDEs show them nicely; CMake does not compile headers by themselves.
 add_executable(WinAgent
         main.cpp
+        include/MainWindow.h
+        include/ModuleFactory.h
         include/BaseMonitor.h
         include/modules/CPUMonitor.h
-        src/modules/CPUMonitor.cpp
         include/modules/MemoryMonitor.h
-        src/modules/MemoryMonitor.cpp
-        include/ModuleFactory.h
-        include/NetworkReporter.h
-        include/modules/NetworkBytes.h
-        src/modules/NetworkBytes.cpp
-        src/NetworkReporter.cpp
-        include/modules/AudioMonitor.h
-        src/modules/AudioMonitor.cpp
-        include/modules/MediaMonitor.h
-        src/modules/MediaMonitor.cpp
-        include/modules/AudioDeviceSwitcher.h
-        src/modules/AudioDeviceSwitcher.cpp
-        include/MainWindow.h
-        src/MainWindow.cpp
+        include/modules/NetworkMonitor.h
         include/modules/ProcessMonitor.h
+        include/modules/AudioMonitor.h
+        include/modules/MediaMonitor.h
+        include/modules/AudioDeviceMonitor.h
         include/modules/AudezeMonitor.h
+        include/modules/LauncherMonitor.h
+        include/Dashboard.h
+        include/DashboardData.h
+        include/DashboardServer.h
+        include/DashboardWebSocketServer.h
+
+        src/MainWindow.cpp
+        src/modules/CPUMonitor.cpp
+        src/modules/MemoryMonitor.cpp
+        src/modules/NetworkMonitor.cpp
+        src/modules/ProcessMonitor.cpp
+        src/modules/AudioMonitor.cpp
+        src/modules/MediaMonitor.cpp
+        src/modules/AudioDeviceMonitor.cpp
         src/modules/AudezeMonitor.cpp
+        src/DashboardServer.cpp
+        src/DashboardWebSocketServer.cpp
+        src/modules/LauncherMonitor.cpp
+
+        include/Logger.h
 )
 
 # Link against Qt and Windows system libraries used by different monitors.
 target_link_libraries(WinAgent PRIVATE
         Qt6::Widgets
         Qt6::Network
+        Qt6::HttpServer
+        Qt6::WebSockets
         psapi
         pdh
         ws2_32
@@ -64,9 +76,6 @@ target_link_libraries(WinAgent PRIVATE
         hidapi
         setupapi
 )
-
-# If you want a pure GUI app without a console window, enable this:
-# set_target_properties(WinAgent PROPERTIES WIN32_EXECUTABLE TRUE)
 
 # Deployment logic
 install(TARGETS WinAgent

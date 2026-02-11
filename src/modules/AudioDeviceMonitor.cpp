@@ -1,9 +1,8 @@
-#include "modules/AudioDeviceSwitcher.h"
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
-#include <iostream>
 #include <mmreg.h>
+#include "modules/AudioDeviceMonitor.h"
 
 #pragma comment(lib, "ole32.lib")
 
@@ -44,7 +43,35 @@ private:
     bool initialized{false};
 };
 
-std::vector<AudioDevice> AudioDeviceSwitcher::listDevices() {
+void AudioDeviceMonitor::init() {}
+
+void AudioDeviceMonitor::update() {
+    auto devices = listDevices();
+
+    std::unordered_set<uint32_t> alive;
+    alive.reserve(devices.size());
+
+    for (const auto& device : devices) {
+        alive.insert(device.index);
+        dashboard_->data.audio.devices.add(
+            device.index,
+            device.name,
+            device.deviceId,
+            device.isDefault
+        );
+    }
+
+    dashboard_->data.audio.devices.removeMissing(alive);
+}
+
+bool AudioDeviceMonitor::setDefaultByIndex(int index) {
+    // Convenience helper: pick deviceId from listDevices() by index.
+    auto devices = listDevices();
+    if (index < 0 || index >= (int)devices.size()) return false;
+    return setDefaultById(devices[index].deviceId);
+}
+
+std::vector<AudioDevice> AudioDeviceMonitor::listDevices() {
     // Enumerates active render devices and marks the default one.
     std::vector<AudioDevice> devices;
     ScopedCOM com;
@@ -104,7 +131,7 @@ std::vector<AudioDevice> AudioDeviceSwitcher::listDevices() {
     return devices;
 }
 
-bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId) {
+bool AudioDeviceMonitor::setDefaultById(const std::wstring& deviceId) {
     // Sets the given device as default for all common roles:
     // - eConsole
     // - eMultimedia
@@ -121,11 +148,4 @@ bool AudioDeviceSwitcher::setDefaultById(const std::wstring& deviceId) {
 
     policy->Release();
     return true;
-}
-
-bool AudioDeviceSwitcher::setDefaultByIndex(int index) {
-    // Convenience helper: pick deviceId from listDevices() by index.
-    auto devices = listDevices();
-    if (index < 0 || index >= (int)devices.size()) return false;
-    return setDefaultById(devices[index].deviceId);
 }

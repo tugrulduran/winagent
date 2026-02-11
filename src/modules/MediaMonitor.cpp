@@ -1,12 +1,11 @@
-#include "modules/MediaMonitor.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-
 #include <windows.media.control.h>
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
 #include <windows.foundation.h>
+#include "modules/MediaMonitor.h"
 
 #pragma comment(lib, "runtimeobject.lib")
 
@@ -14,11 +13,6 @@ using namespace Microsoft::WRL;
 using namespace Microsoft::WRL::Wrappers;
 using namespace ABI::Windows::Media::Control;
 using namespace ABI::Windows::Foundation;
-
-MediaMonitor::MediaMonitor(int ms) : BaseMonitor(ms) {
-    // Start with an empty packet.
-    memset(&currentData, 0, sizeof(MediaPacket));
-}
 
 MediaMonitor::~MediaMonitor() {
     stop();
@@ -51,25 +45,6 @@ std::string MediaMonitor::formatTime(uint32_t s) const {
     return ss.str();
 }
 
-BOOL CALLBACK MediaMonitor::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-    // Fallback approach:
-    // Scan visible windows and look for "YouTube" or "Spotify" in the title.
-    // If found, copy the first match into the MediaPacket.
-    wchar_t buf[512];
-    if (IsWindowVisible(hwnd) && GetWindowTextW(hwnd, buf, 512) > 0) {
-        std::wstring ws(buf);
-        MediaPacket *p = reinterpret_cast<MediaPacket *>(lParam);
-        if (ws.find(L"YouTube") != std::wstring::npos || ws.find(L"Spotify") != std::wstring::npos) {
-            if (wcslen(p->title) == 0) {
-                wcsncpy(p->source, ws.find(L"YouTube") != std::wstring::npos ? L"YouTube" : L"Spotify", 15);
-                wcsncpy(p->title, buf, 63);
-            }
-            return FALSE;
-        }
-    }
-    return TRUE;
-}
-
 void MediaMonitor::update() {
     // Primary approach:
     // Use Windows Global System Media Transport Controls to get playback state and timeline.
@@ -81,8 +56,11 @@ void MediaMonitor::update() {
         threadInit = true;
     }
 
-    MediaPacket newData;
-    memset(&newData, 0, sizeof(MediaPacket));
+    uint8_t media_source = MEDIA_SOURCE_NO_MEDIA;
+    std::wstring media_title = L"";
+    uint64_t media_duration = 0;
+    uint64_t media_currentTime = 0;
+    bool media_isPlaying = false;
 
     ComPtr<IGlobalSystemMediaTransportControlsSessionManagerStatics> managerStatics;
     if (SUCCEEDED(
@@ -108,8 +86,8 @@ void MediaMonitor::update() {
                         if (SUCCEEDED(session->GetPlaybackInfo(&playback)) && playback) {
                             GlobalSystemMediaTransportControlsSessionPlaybackStatus pStatus;
                             playback->get_PlaybackStatus(&pStatus);
-                            newData.isPlaying = (
-                                pStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus_Playing);
+                            media_isPlaying =
+                                    pStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus_Playing;
                         }
                         ComPtr<IGlobalSystemMediaTransportControlsSessionTimelineProperties> timeline;
                         if (SUCCEEDED(session->GetTimelineProperties(&timeline)) && timeline) {
@@ -119,23 +97,23 @@ void MediaMonitor::update() {
                                 SUCCEEDED(timeline->get_LastUpdatedTime(&lastUpdate))) {
                                 uint32_t totalSec = (uint32_t) (end.Duration / 10000000);
                                 uint32_t posSec = (uint32_t) (pos.Duration / 10000000);
-                                if (newData.isPlaying) {
+                                if (media_isPlaying) {
                                     FILETIME nowFT;
                                     GetSystemTimeAsFileTime(&nowFT);
                                     ULARGE_INTEGER nowTicks, lastTicks;
                                     nowTicks.LowPart = nowFT.dwLowDateTime;
                                     nowTicks.HighPart = nowFT.dwHighDateTime;
                                     lastTicks.QuadPart = lastUpdate.UniversalTime;
-                                    newData.currentTime =
+                                    media_currentTime =
                                             posSec + (uint32_t) ((nowTicks.QuadPart - lastTicks.QuadPart) / 10000000);
-                                } else newData.currentTime = posSec;
-                                if (newData.currentTime > totalSec) newData.currentTime = totalSec;
-                                newData.totalTime = totalSec;
+                                } else media_currentTime = posSec;
+                                if (media_currentTime > totalSec) media_currentTime = totalSec;
+                                media_duration = totalSec;
                             }
                         }
 
                         // NEW: Get Media Properties (Title, Artist, etc.) directly from WinRT
-                        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionMediaProperties*>> propOp;
+                        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionMediaProperties *> > propOp;
                         if (SUCCEEDED(session->TryGetMediaPropertiesAsync(&propOp)) && propOp) {
                             AsyncStatus propStatus;
                             ComPtr<IAsyncInfo> propInfo;
@@ -157,20 +135,26 @@ void MediaMonitor::update() {
                                         // Special handling for Kick streams
                                         size_t kickPos = fullTitle.find(L" Stream - Watch Live on Kick");
                                         if (kickPos != std::wstring::npos) {
-                                            wcsncpy(newData.source, L"Kick", 15);
-                                            wcsncpy(newData.title, fullTitle.substr(0, kickPos).c_str(), 63);
+                                            media_source = MEDIA_SOURCE_KICK;
+                                            media_title = fullTitle.substr(0, min(64, kickPos));
                                         } else {
-                                            wcsncpy(newData.title, fullTitle.c_str(), 63);
+                                            media_source = MEDIA_SOURCE_GENERIC;
+                                            media_title = fullTitle.substr(0, 64);
                                         }
                                     }
-                                    if (wcslen(newData.source) == 0 && appId.GetRawBuffer(nullptr)) {
+                                    if (media_source == MEDIA_SOURCE_GENERIC && appId.GetRawBuffer(nullptr)) {
                                         std::wstring app(appId.GetRawBuffer(nullptr));
-                                        if (app.find(L"Spotify") != std::wstring::npos) wcsncpy(newData.source, L"Spotify", 15);
-                                        else if (app.find(L"Chrome") != std::wstring::npos) wcsncpy(newData.source, L"Chrome", 15);
-                                        else if (app.find(L"Edge") != std::wstring::npos) wcsncpy(newData.source, L"Edge", 15);
-                                        else if (app.find(L"Video.UI") != std::wstring::npos) wcsncpy(newData.source, L"Media Player", 15);
-                                        else if (app.find(L"Music.UI") != std::wstring::npos) wcsncpy(newData.source, L"Music Player", 15);
-                                        else wcsncpy(newData.source, L"Media", 15);
+                                        if (app.find(L"Spotify") != std::wstring::npos)
+                                            media_source = MEDIA_SOURCE_SPOTIFY;
+                                        else if (app.find(L"Chrome") != std::wstring::npos)
+                                            media_source = MEDIA_SOURCE_GENERIC;
+                                        else if (app.find(L"Edge") != std::wstring::npos)
+                                            media_source = MEDIA_SOURCE_GENERIC;
+                                        else if (app.find(L"Video.UI") != std::wstring::npos)
+                                            media_source = MEDIA_SOURCE_MEDIA_PLAYER;
+                                        else if (app.find(L"Music.UI") != std::wstring::npos)
+                                            media_source = MEDIA_SOURCE_MEDIA_PLAYER;
+                                        else media_source = MEDIA_SOURCE_GENERIC;
                                     }
                                 }
                             }
@@ -181,32 +165,29 @@ void MediaMonitor::update() {
         }
     }
 
-    // Fallback: try to detect title/source by scanning window titles (only if title is still empty).
-    if (wcslen(newData.title) == 0) {
-        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&newData));
-    }
-
     // Clean up the title for nicer display.
-    std::wstring ts(newData.title);
+    std::wstring ts(media_title);
     cleanTitle(ts);
-    wcsncpy(newData.title, ts.c_str(), 63);
+    media_title = ts;
 
-    // Publish new packet safely.
-    std::lock_guard<std::mutex> lock(mediaMutex);
-    currentData = newData;
+    dashboard_->data.media.set(
+        media_title,
+        media_source,
+        media_duration,
+        media_currentTime,
+        media_isPlaying
+    );
 }
 
-void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTransportControlsSession*)> action) {
+void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTransportControlsSession *)> action) {
     HRESULT hrInit = RoInitialize(RO_INIT_MULTITHREADED);
 
     ComPtr<IGlobalSystemMediaTransportControlsSessionManagerStatics> managerStatics;
     if (SUCCEEDED(RoGetActivationFactory(
         HStringReference(RuntimeClass_Windows_Media_Control_GlobalSystemMediaTransportControlsSessionManager).Get(),
         IID_PPV_ARGS(&managerStatics)))) {
-
-        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionManager*>> op;
+        ComPtr<IAsyncOperation<GlobalSystemMediaTransportControlsSessionManager *> > op;
         if (SUCCEEDED(managerStatics->RequestAsync(&op))) {
-
             // Asenkron bekleme (Basit senkron döngü)
             AsyncStatus status;
             ComPtr<IAsyncInfo> info;
@@ -226,35 +207,35 @@ void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTr
                 }
             }
         }
-        }
+    }
 
     if (SUCCEEDED(hrInit)) RoUninitialize();
 }
 
 void MediaMonitor::playpause() {
-    executeMediaAction([](auto* session) {
-        ComPtr<IAsyncOperation<bool>> actionOp;
+    executeMediaAction([](auto *session) {
+        ComPtr<IAsyncOperation<bool> > actionOp;
         return session->TryTogglePlayPauseAsync(&actionOp);
     });
 }
 
 void MediaMonitor::stop() {
-    executeMediaAction([](auto* session) {
-        ComPtr<IAsyncOperation<bool>> actionOp;
+    executeMediaAction([](auto *session) {
+        ComPtr<IAsyncOperation<bool> > actionOp;
         return session->TryStopAsync(&actionOp);
     });
 }
 
 void MediaMonitor::next() {
-    executeMediaAction([](auto* session) {
-        ComPtr<IAsyncOperation<bool>> actionOp;
+    executeMediaAction([](auto *session) {
+        ComPtr<IAsyncOperation<bool> > actionOp;
         return session->TrySkipNextAsync(&actionOp);
     });
 }
 
 void MediaMonitor::prev() {
-    executeMediaAction([](auto* session) {
-        ComPtr<IAsyncOperation<bool>> actionOp;
+    executeMediaAction([](auto *session) {
+        ComPtr<IAsyncOperation<bool> > actionOp;
         return session->TrySkipPreviousAsync(&actionOp);
     });
 }
@@ -262,8 +243,8 @@ void MediaMonitor::prev() {
 void MediaMonitor::jump(uint16_t time) {
     long long ticks = static_cast<long long>(time * 10000000LL);
 
-    executeMediaAction([ticks](auto* session) {
-        ComPtr<IAsyncOperation<bool>> actionOp;
+    executeMediaAction([ticks](auto *session) {
+        ComPtr<IAsyncOperation<bool> > actionOp;
         return session->TryChangePlaybackPositionAsync(ticks, &actionOp);
     });
 }
