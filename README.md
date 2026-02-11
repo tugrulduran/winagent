@@ -1,95 +1,88 @@
-# WinAgent
+# 🚀 WinAgent: Windows System Monitoring & Control Agent
 
-WinAgent is a lightweight Windows system monitoring agent built with **C++20** and **Qt 6 Widgets**. It collects real-time system snapshots and transmits them over **UDP** to a remote server or dashboard.
-
-The application is designed to be unobtrusive, running background monitoring modules in dedicated threads to ensure a responsive UI and minimal system impact.
-
-> **Note:** The user interface contains some text in Turkish, while the source code, comments, and documentation are in English.
+WinAgent is a high-performance, lightweight Windows monitoring agent built with **C++20** and **Qt 6**. It collects real-time system metrics, manages audio/media states, and exposes this data via a **WebSocket** server. Designed for power users and dashboard enthusiasts, WinAgent provides the raw telemetry needed to build custom system monitors or remote control interfaces.
 
 ---
 
-## 🚀 Features
+## ✨ Key Features
 
-WinAgent includes several specialized monitoring modules:
+WinAgent operates with a modular architecture, where each component runs independently:
 
-*   **CPU Monitor**: Tracks total CPU usage using Windows Performance Data Helpers (PDH).
-*   **Memory Monitor**: Reports total, used, and free RAM via `GlobalMemoryStatusEx`.
-*   **Network Monitor**: Monitors per-interface data rates (KB/s in/out) using `GetIfTable2`.
-*   **Audio Monitor**: 
-    *   Tracks master volume and per-application audio sessions.
-    *   Listens for audio device changes.
-    *   Supports switching default audio output devices (via undocumented `IPolicyConfig` interfaces).
-*   **Media Monitor**: 
-    *   Retrieves current media metadata (Title, Artist) and playback state.
-    *   Uses WinRT `GlobalSystemMediaTransportControls`.
-    *   Provides fallback to window title tracking.
-*   **Process Monitor**: Identifies the current foreground application (Executable name and PID).
-*   **UDP Reporter**:
-    *   **Telemetry**: Sends compact binary packets to a configurable server (Default: `127.0.0.1:5000`).
-    *   **Command Listener**: Listens for incoming UDP commands for remote control (Default: Port `5001`).
-
----
-
-## 🏗️ Project Structure
-
-*   `main.cpp`: Entry point; initializes the Qt application and `MainWindow`.
-*   `include/BaseMonitor.h`: Abstract base class for all monitoring modules, providing thread management and consistent update intervals.
-*   `include/modules/` & `src/modules/`: Implementation of specific monitoring logic:
-    *   `CPUMonitor`, `MemoryMonitor`, `NetworkBytes`, `AudioMonitor`, `MediaMonitor`, `ProcessMonitor`.
-    *   `AudioDeviceSwitcher`: Utility for managing Windows audio endpoints.
-*   `NetworkReporter`: Manages the UDP communication lifecycle (Sending snapshots & receiving commands).
-*   `MainWindow`: The Qt-based GUI that displays real-time data and manages the reporter state.
+*   **🖥️ System Telemetry**:
+    *   **CPU Usage**: Real-time total load tracking via Windows Performance Data Helpers (PDH).
+    *   **Memory (RAM)**: Precise tracking of total and used physical memory.
+    *   **Network**: Per-interface data rate monitoring (Bytes Received/Sent).
+    *   **Process Tracking**: Identifies the currently active foreground window and its PID.
+*   **🔊 Advanced Audio Management**:
+    *   Monitor master volume and per-application audio sessions.
+    *   List and switch between available audio output devices.
+    *   Remote toggle for mute/unmute states.
+*   **🎵 Media Integration**:
+    *   Hooks into Windows **Global System Media Transport Controls (GSMTC)**.
+    *   Captures live metadata: Title, Artist, and Playback Status (Playing/Paused).
+    *   Supports remote media controls: Play, Pause, Stop, Skip, and Seek.
+*   **🚀 Remote Launcher**:
+    *   Trigger pre-defined actions or applications via remote commands.
+*   **🌐 Web Dashboards**:
+    *   Built-in HTTPS server to serve custom HTML/JS dashboards.
+    *   Dashboards can be easily customized and are located in the `dashboards/` directory.
+*   **🎧 Specialized Hardware Support**:
+    *   **Audeze Headphones**: Direct HID communication to monitor battery levels for supported Audeze headsets.
+*   **🛰️ WebSocket API**:
+    *   Broadcasts full system state as JSON every 500ms.
+    *   Accepts incoming JSON-based commands for remote interaction.
 
 ---
 
-## ⚙️ How It Works
+## 🏗️ Project Architecture
 
-### Multi-Threading
-WinAgent utilizes a multi-threaded architecture to ensure performance:
-1.  **UI Thread**: Handles rendering and user interactions.
-2.  **Monitor Threads**: Each active monitor runs in its own thread, updating its internal state at fixed intervals.
-3.  **Reporter Threads**:
-    *   **Sender**: Periodically aggregates data from all monitors and sends a binary packet.
-    *   **Listener**: Waits for incoming commands on a separate UDP port.
-
-### Thread Safety
-Each monitor protects its internal state with a `std::mutex`. When the UI or Reporter requests data, the monitor returns a **copy** of its latest snapshot while holding the lock, preventing data races.
-
-### Network Protocol
-The agent communicates using a compact binary format to minimize bandwidth. Data is packed without padding (`#pragma pack(1)`) to ensure consistency between the agent and the receiver.
+*   **Threaded Monitors**: Each monitoring module (CPU, RAM, Audio, etc.) runs in its own dedicated thread to prevent UI blocking and ensure consistent sampling rates.
+*   **Thread-Safe Data Hub**: A central repository manages state snapshots using mutex protection, ensuring data integrity between monitors and the communication layer.
+*   **WebSocket Server**: Built on `QtWebSockets`, providing a robust, low-latency bi-directional communication channel.
+*   **HTTPS Dashboard Server**: A custom SSL-enabled TCP server that serves dashboard assets to web clients.
 
 ---
 
-## 🛠️ Build & Deployment
+## ⚙️ Technical Stack
 
-### Build Requirements
-*   **Operating System**: Windows 10 or 11.
-*   **Compiler**: A C++20 compatible compiler (MSVC recommended).
+*   **Language**: C++20 (using modern features for safety and performance).
+*   **Framework**: Qt 6.10+ (Widgets, Network, WebSockets).
+*   **APIs**: Windows SDK, WinRT (for Media), PDH (for CPU), HIDAPI (for Hardware).
 *   **Build System**: CMake 3.28+.
-*   **Framework**: Qt 6 (Widgets and Network modules).
 
-### Building with CMake
+---
+
+## 🛠️ Getting Started
+
+### Prerequisites
+*   Windows 10 or 11.
+*   **MSVC 2022** (recommended) or any C++20 compatible compiler.
+*   **Qt 6 SDK** (including `HttpServer` and `WebSockets` components).
+*   **CMake 3.28+**.
+
+### Build Instructions
+1. Clone the repository.
+2. Generate build files and compile:
+   ```powershell
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build . --config Release
+   ```
+3. The executable `WinAgent.exe` will be located in the `bin` or `Release` directory.
+
+### Deployment
+To run WinAgent on a machine without Qt installed, use the `windeployqt` utility to package the necessary dependencies.
+
+**Important**: The `dashboards` directory must be located in the same folder as `WinAgent.exe` for the web server to function correctly. Additionally, you must provide `cert.pem` and `key.pem` files in the same directory for SSL support.
+
 ```powershell
-mkdir build
-cd build
-cmake ..
-cmake --build . --config Release
+# In your build/Release directory
+windeployqt.exe WinAgent.exe
 ```
-
-### 📦 Deployment (Running on other PCs)
-To run the compiled `WinAgent.exe` on a computer that doesn't have Qt installed, you need to bundle the required libraries:
-
-1.  **Visual C++ Redistributable**: Ensure the target machine has the latest [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed.
-2.  **Qt Deployment**: Use the `windeployqt` tool (included with your Qt installation) to copy the necessary DLLs and plugins to your executable's folder.
-    ```powershell
-    # Navigate to your Release folder
-    cd build/Release
-    # Run windeployqt
-    windeployqt.exe WinAgent.exe
-    ```
-3.  **Distribute**: You can now copy the entire folder (containing the `.exe` and all the `.dll` files) to any other Windows PC.
 
 ---
 
 ## 📄 License
-This project is licensed under the terms provided in [LICENCE.txt](LICENCE.txt).
+
+This project is licensed under the terms found in [LICENCE.txt](LICENCE.txt).

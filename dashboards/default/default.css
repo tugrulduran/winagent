@@ -1,0 +1,553 @@
+@import url('https://fonts.googleapis.com/css2?family=PT+Mono&display=swap');
+
+:root {
+  --bg: #020205;
+  --accent: #00f2ff;
+  --accent-dull: #4a7a7d;
+  --ram: rgba(255, 140, 24, 0.18);
+  --ram-dull: #7a4a7a;
+  --net: #7ed3a1;
+  --panel: rgba(20, 20, 30, 0.95);
+  --glass: rgba(255, 255, 255, 0.03);
+  --masterglass: rgba(207, 26, 26, 0.03);
+  --sw-passive-color: #404040;
+  --sw-active-color: #c860c3;
+}
+
+body {
+  background: var(--bg);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* --- ÜST HUD (SİSTEM BİLGİLERİ) --- */
+.system-vitals {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  padding: 10px 40px;
+  background: var(--panel);
+  border-bottom: 3px solid var(--accent);
+  height: 12vh;
+  box-sizing: border-box;
+  align-items: center;
+  z-index: 10;
+}
+
+.vitals-left {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.vitals-left-system {
+  width: 60%;
+}
+
+.vitals-left-network {
+  width: 40%;
+  padding-right: 20px;
+}
+
+.vital-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vital-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vital-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vital-bar-bg {
+  flex: 1;
+  height: 16px;
+  background: #000;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.vital-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.4s ease;
+}
+
+#cpu-fill {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+#ram-fill {
+  background: var(--ram);
+  box-shadow: 0 0 10px var(--ram);
+}
+
+.vital-value {
+  font-family: 'Orbitron';
+  font-size: 1.6vh;
+  font-weight: 900;
+  min-width: 70px;
+  text-align: right;
+}
+
+.vital-value.critical {
+  color: #f00;
+  text-shadow: 0 0 20px #f00;
+}
+
+/* Orta Blok: Saat ve Kronometre */
+.vitals-middle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 50px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  height: 80%;
+}
+
+.vital-text-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.clock-container {
+  width: 50%;
+  font-family: "PT Mono", monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 180px;
+}
+
+#main-clock {
+  font-size: 64px;
+  color: var(--accent);
+  line-height: 1;
+  text-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
+}
+
+#main-date {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+.stopwatch-container {
+  width: 50%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  min-width: 150px;
+}
+
+#sw-display {
+  font-family: "PT Mono", monospace;
+  font-size: 50px;
+  color: var(--sw-passive-color);
+  transition: all 0.4s ease;
+}
+
+#sw-display.active-color {
+  color: var(--sw-active-color);
+  text-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+}
+
+.sw-controls {
+  margin-left: 10px;
+  display: flex;
+  gap: 20px;
+}
+
+#sw-reset {
+  display: none;
+}
+
+.sw-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sw-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.sw-btn:hover {
+  color: var(--accent);
+  transform: scale(1.2);
+}
+
+.sw-btn.active {
+  color: var(--ram);
+}
+
+.net-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-self: end;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 15px;
+  border-radius: 8px;
+}
+
+.net-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.net-value {
+  font-family: 'Orbitron';
+  font-size: 2vh;
+  font-weight: 900;
+  min-width: 120px;
+  text-align: right;
+}
+
+/* --- MİKSER --- */
+.mixer-container {
+  display: flex;
+  gap: 20px;
+  padding: 40px;
+  height: 55vh;
+  width: calc(100vw - 350px);
+  box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
+}
+
+.strip {
+  position: relative;
+  flex: 1;
+  max-width: 160px;
+  min-width: 110px;
+  height: 100%;
+  background: var(--glass);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: ns-resize;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, #0044ff, var(--accent));
+  pointer-events: none;
+  transition: height 0.1s linear;
+}
+
+.strip#pid-4294967295 .fill {
+  background: linear-gradient(to top, #00ff04, rgba(0, 255, 4, 0.55));
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  pointer-events: none;
+}
+
+.app-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+  color: var(--accent);
+}
+
+.app-name {
+  font-size: 1.8vh;
+  font-weight: 700;
+  text-transform: uppercase;
+  transform: rotate(-90deg);
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.vol-label {
+  font-family: 'Orbitron';
+  font-size: 3.5vh;
+  font-weight: 900;
+}
+
+/* --- CİHAZ LİSTESİ --- */
+#device-list {
+  position: fixed;
+  right: 30px;
+  top: 15vh;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px;
+  background: rgba(10, 10, 15, 0.6);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 242, 255, 0.1);
+  backdrop-filter: blur(10px);
+  max-height: 55vh;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.device-btn {
+  padding: 12px 15px;
+  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #888;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Orbitron';
+  font-size: 24px;
+  text-align: right;
+  transition: all 0.3s;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 268px;
+}
+
+.device-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+/* --- MEDYA KONTROL --- */
+.media-hud {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 25px;
+  padding: 20px;
+  display: none;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
+  z-index: 1000;
+  transition: all 0.4s ease;
+}
+
+.media-hud.paused {
+  border-color: var(--accent-dull);
+  box-shadow: none;
+}
+
+.media-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.nav-btn {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  border: none;
+}
+
+.nav-btn.small {
+  font-size: 40px;
+}
+
+.nav-btn.seek {
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.media-main-btn {
+  flex: 1;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.2s;
+  min-width: 350px;
+}
+
+#media-title {
+  font-family: 'Orbitron';
+  font-size: 22px;
+  color: var(--accent);
+  text-align: center;
+  margin: 5px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.media-progress-bg {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#media-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  box-shadow: 0 0 15px var(--accent);
+  transition: width 0.5s linear, background 0.4s ease;
+}
+
+.media-time {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Orbitron';
+  font-size: 13px;
+  color: #888;
+}
+
+/* --- DURUM & BUTONLAR --- */
+.status-panel {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1001;
+}
+
+.badge {
+  font-family: 'Orbitron';
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #444;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+}
+
+.badge.active {
+  color: var(--net);
+  border-color: var(--net);
+  text-shadow: 0 0 10px var(--net);
+  background: rgba(126, 211, 161, 0.1);
+}
+
+.controls {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  z-index: 1000;
+}
+
+.btn-action {
+  width: 60px;
+  height: 60px;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 15px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-action.active {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 20px var(--accent);
+}
+
+.btn-action svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+}
+
+#launcher-zone-1 {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  align-content: center;
+  flex-wrap: wrap;
+  height: 100%;
+}
+
+.launcher-btn {
+  font-size: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.3s;
+}
