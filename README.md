@@ -1,34 +1,63 @@
 # WinAgent
 
-**WinAgent** is a modular, high‑performance **Windows system monitoring agent** written in modern **C++ (Qt)**.  
-It collects real‑time system, media, and hardware metrics and exposes them through a **WebSocket‑based dashboard API**, designed to be consumed by external UIs, dashboards, or automation tools.
+<p align="center">
+  <strong>🚀 A Modern, Open‑Source Windows System Monitoring Agent</strong>
+</p>
 
-This project focuses on **clean architecture, thread safety, and extensibility** — new monitors can be added with minimal friction.
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Windows-blue?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/language-C%2B%2B17-00599C?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/framework-Qt%206-41CD52?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/build-CMake-informational?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/open--source-%E2%9C%94-brightgreen"/>
+  <img src="https://img.shields.io/badge/contributions-welcome-orange"/>
+  <img src="https://img.shields.io/badge/status-active%20development-blueviolet"/>
+</p>
 
 ---
 
-## ✨ Features
+## 🧠 What is WinAgent?
 
-- 🧠 **Modular monitor architecture**
-- 📊 **Real‑time system metrics**
+**WinAgent** is a **fully open‑source**, high‑performance **Windows system monitoring agent** written in modern **C++ (Qt 6)**.
+
+It is designed to run **continuously**, collect **real‑time system, media, and hardware metrics**, and expose them through a **WebSocket‑based JSON API** that can be consumed by:
+
+- Web dashboards
+- Desktop monitoring apps
+- Automation systems
+- Home‑lab / observability stacks
+
+WinAgent is **backend‑only by design** — UI, dashboards, and visualization layers are intentionally decoupled.
+
+---
+
+## ✨ Key Features
+
+- 🧩 **Plugin‑like modular monitor system**
+- 📊 **Real‑time metrics**
     - CPU usage
     - Memory usage
     - Network activity
-    - Audio devices & audio activity
-    - Media playback status
-    - Application / launcher state
-- 🎧 **Audeze Maxwell monitoring**
-    - Battery & device status via HID
+    - Audio activity & devices
+    - Media playback state
+    - Application / launcher status
+- 🎧 **Audeze Maxwell integration**
+    - Battery & device state via HID
 - 🌐 **WebSocket server**
-    - Push‑based JSON updates
-    - Low‑latency, timer‑driven broadcasts
-- 🧵 **Thread‑safe shared data model**
-- 🪟 **Native Windows application**
-- ⚙️ **CMake‑based build system**
+    - Push‑based JSON messages
+    - Timer‑driven, low‑latency updates
+- 🧵 **Thread‑safe data sharing**
+    - Atomics & minimal locking
+- ⚙️ **CMake‑based build**
+- 📖 Clean, readable, extensible C++ codebase
 
 ---
 
-## 🏗 Architecture Overview
+## 🏗 High‑Level Architecture
 
 ```
 +---------------------+
@@ -42,9 +71,9 @@ This project focuses on **clean architecture, thread safety, and extensibility**
            |
            v
 +---------------------+
-|  DashboardData      |
+|   DashboardData     |
 |---------------------|
-| Thread‑safe store   |
+| Thread-safe store   |
 | Atomic metrics      |
 +----------+----------+
            |
@@ -53,13 +82,13 @@ This project focuses on **clean architecture, thread safety, and extensibility**
 | WebSocket Server    |
 |---------------------|
 | JSON push updates   |
-| Timer‑based send    |
-+---------------------+
+| Timer-based send    |
++----------+----------+
            |
            v
 +---------------------+
-| External Dashboard  |
-| (Web / Desktop UI)  |
+| External Dashboards |
+| Web / Desktop / CLI |
 +---------------------+
 ```
 
@@ -98,17 +127,16 @@ WinAgent/
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### System Requirements
 
-- Windows 10 / 11
+- Windows 10 / 11 (x64)
 - **Qt 6.x**
 - **CMake ≥ 3.20**
 - MSVC (Visual Studio 2022 recommended)
-- HIDAPI (included for Windows)
 
 ---
 
-### Build Instructions
+### 🔧 Build Instructions
 
 ```bash
 git clone https://github.com/your-org/winagent.git
@@ -116,17 +144,41 @@ cd winagent
 
 mkdir build
 cd build
-cmake ..
+
+cmake .. -G "Visual Studio 17 2022"
 cmake --build . --config Release
 ```
+
+The resulting executable will be generated under:
+
+```
+build/Release/
+```
+
+---
+
+## ▶️ Running WinAgent
+
+Simply run the generated executable:
+
+```bash
+WinAgent.exe
+```
+
+Once running:
+- System monitors start automatically
+- WebSocket server is initialized
+- Metrics begin broadcasting at fixed intervals
+
+WinAgent is designed to be **long‑running** (days / weeks uptime).
 
 ---
 
 ## 🌐 WebSocket API
 
-WinAgent exposes a WebSocket server that periodically broadcasts JSON messages.
+WinAgent exposes a **push‑only WebSocket server**.
 
-### Example Payload
+### Example Message
 
 ```json
 {
@@ -137,45 +189,50 @@ WinAgent exposes a WebSocket server that periodically broadcasts JSON messages.
 }
 ```
 
-### Design Notes
+### Design Principles
 
-- Push‑only (no polling)
-- Centralized `DashboardData` store
-- All monitors write, WebSocket server reads
-- Lock‑free where possible (atomics)
+- No polling
+- No shared mutable state across modules
+- Central `DashboardData` store
+- Clear command‑based JSON schema
 
 ---
 
-## 🧩 Adding a New Monitor
+## 🧩 Writing a New Monitor
 
-1. Create a new class inheriting from `BaseMonitor`
+Creating a new monitor is straightforward:
+
+1. Inherit from `BaseMonitor`
 2. Implement:
     - `start()`
     - `stop()`
-    - data update logic
-3. Register it in `ModuleFactory`
-4. Write to `DashboardData`
+    - update loop
+3. Write results into `DashboardData`
+4. Register the module in `ModuleFactory`
 
-That’s it — the data will automatically flow to the dashboard 🚀
+No changes are required in the WebSocket layer.
 
 ---
 
-## 🔒 Thread Safety
+## 🔒 Thread Safety Model
 
-- Shared state lives in `DashboardData`
-- Uses `std::atomic` and fine‑grained locking
+- All shared state lives in `DashboardData`
+- Uses `std::atomic` where possible
+- Minimal mutex usage
 - Monitors run independently
-- WebSocket server reads on a timer thread
+- WebSocket server reads on its own timer thread
+
+This design minimizes contention and avoids hidden dependencies.
 
 ---
 
-## 🎯 Project Goals
+## 🎯 Project Philosophy
 
-- **Low overhead**
-- **Long‑running stability**
-- **Clean C++ / Qt design**
-- **Dashboard‑agnostic backend**
-- **Easy extensibility**
+- ✅ Open‑source first
+- ✅ Maintainable over clever
+- ✅ Backend‑only, UI‑agnostic
+- ✅ Designed for real, long‑running systems
+- ❌ No magic, no global state chaos
 
 ---
 
@@ -183,20 +240,42 @@ That’s it — the data will automatically flow to the dashboard 🚀
 
 - [ ] Authentication for WebSocket clients
 - [ ] Configurable update intervals
-- [ ] Plugin system
-- [ ] Cross‑platform support (Linux)
+- [ ] YAML / JSON config file
+- [ ] Plugin loading (DLL‑based)
+- [ ] Linux support
+
+---
+
+## 🤝 Contributing
+
+Contributions are **very welcome**.
+
+- Fork the repo
+- Create a feature branch
+- Keep code clean and readable
+- Open a PR
+
+Even small improvements or monitor ideas matter ❤️
 
 ---
 
 ## 📜 License
 
-MIT License — do whatever you want, just don’t blame us 😉
+This project is licensed under the **MIT License**.
+
+You are free to:
+- Use
+- Modify
+- Distribute
+- Embed
+
+Just keep the license and don’t blame the author 😉
 
 ---
 
-## 💬 Notes
+## ⭐ Final Words
 
-This project is actively developed and designed for **serious, long‑running system agents**, not toy dashboards.  
-If you care about **correctness, performance, and maintainability**, you’re in the right place.
+WinAgent is built for developers who care about:
+**correctness, performance, and architectural sanity**.
 
-Happy hacking ❤️
+If that sounds like you — welcome aboard 🚀
