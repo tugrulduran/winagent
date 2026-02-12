@@ -1,88 +1,202 @@
-# 🚀 WinAgent: Windows System Monitoring & Control Agent
+# WinAgent
 
-WinAgent is a high-performance, lightweight Windows monitoring agent built with **C++20** and **Qt 6**. It collects real-time system metrics, manages audio/media states, and exposes this data via a **WebSocket** server. Designed for power users and dashboard enthusiasts, WinAgent provides the raw telemetry needed to build custom system monitors or remote control interfaces.
+**WinAgent** is a modular, high‑performance **Windows system monitoring agent** written in modern **C++ (Qt)**.  
+It collects real‑time system, media, and hardware metrics and exposes them through a **WebSocket‑based dashboard API**, designed to be consumed by external UIs, dashboards, or automation tools.
 
----
-
-## ✨ Key Features
-
-WinAgent operates with a modular architecture, where each component runs independently:
-
-*   **🖥️ System Telemetry**:
-    *   **CPU Usage**: Real-time total load tracking via Windows Performance Data Helpers (PDH).
-    *   **Memory (RAM)**: Precise tracking of total and used physical memory.
-    *   **Network**: Per-interface data rate monitoring (Bytes Received/Sent).
-    *   **Process Tracking**: Identifies the currently active foreground window and its PID.
-*   **🔊 Advanced Audio Management**:
-    *   Monitor master volume and per-application audio sessions.
-    *   List and switch between available audio output devices.
-    *   Remote toggle for mute/unmute states.
-*   **🎵 Media Integration**:
-    *   Hooks into Windows **Global System Media Transport Controls (GSMTC)**.
-    *   Captures live metadata: Title, Artist, and Playback Status (Playing/Paused).
-    *   Supports remote media controls: Play, Pause, Stop, Skip, and Seek.
-*   **🚀 Remote Launcher**:
-    *   Trigger pre-defined actions or applications via remote commands.
-*   **🌐 Web Dashboards**:
-    *   Built-in HTTPS server to serve custom HTML/JS dashboards.
-    *   Dashboards can be easily customized and are located in the `dashboards/` directory.
-*   **🎧 Specialized Hardware Support**:
-    *   **Audeze Headphones**: Direct HID communication to monitor battery levels for supported Audeze headsets.
-*   **🛰️ WebSocket API**:
-    *   Broadcasts full system state as JSON every 500ms.
-    *   Accepts incoming JSON-based commands for remote interaction.
+This project focuses on **clean architecture, thread safety, and extensibility** — new monitors can be added with minimal friction.
 
 ---
 
-## 🏗️ Project Architecture
+## ✨ Features
 
-*   **Threaded Monitors**: Each monitoring module (CPU, RAM, Audio, etc.) runs in its own dedicated thread to prevent UI blocking and ensure consistent sampling rates.
-*   **Thread-Safe Data Hub**: A central repository manages state snapshots using mutex protection, ensuring data integrity between monitors and the communication layer.
-*   **WebSocket Server**: Built on `QtWebSockets`, providing a robust, low-latency bi-directional communication channel.
-*   **HTTPS Dashboard Server**: A custom SSL-enabled TCP server that serves dashboard assets to web clients.
+- 🧠 **Modular monitor architecture**
+- 📊 **Real‑time system metrics**
+    - CPU usage
+    - Memory usage
+    - Network activity
+    - Audio devices & audio activity
+    - Media playback status
+    - Application / launcher state
+- 🎧 **Audeze Maxwell monitoring**
+    - Battery & device status via HID
+- 🌐 **WebSocket server**
+    - Push‑based JSON updates
+    - Low‑latency, timer‑driven broadcasts
+- 🧵 **Thread‑safe shared data model**
+- 🪟 **Native Windows application**
+- ⚙️ **CMake‑based build system**
 
 ---
 
-## ⚙️ Technical Stack
+## 🏗 Architecture Overview
 
-*   **Language**: C++20 (using modern features for safety and performance).
-*   **Framework**: Qt 6.10+ (Widgets, Network, WebSockets).
-*   **APIs**: Windows SDK, WinRT (for Media), PDH (for CPU), HIDAPI (for Hardware).
-*   **Build System**: CMake 3.28+.
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-*   Windows 10 or 11.
-*   **MSVC 2022** (recommended) or any C++20 compatible compiler.
-*   **Qt 6 SDK** (including `HttpServer` and `WebSockets` components).
-*   **CMake 3.28+**.
-
-### Build Instructions
-1. Clone the repository.
-2. Generate build files and compile:
-   ```powershell
-   mkdir build
-   cd build
-   cmake ..
-   cmake --build . --config Release
-   ```
-3. The executable `WinAgent.exe` will be located in the `bin` or `Release` directory.
-
-### Deployment
-To run WinAgent on a machine without Qt installed, use the `windeployqt` utility to package the necessary dependencies.
-
-**Important**: The `dashboards` directory must be located in the same folder as `WinAgent.exe` for the web server to function correctly. Additionally, you must provide `cert.pem` and `key.pem` files in the same directory for SSL support.
-
-```powershell
-# In your build/Release directory
-windeployqt.exe WinAgent.exe
+```
++---------------------+
+|   System Monitors   |
+|---------------------|
+| CPU / Memory        |
+| Network             |
+| Audio / Media       |
+| Audeze HID          |
++----------+----------+
+           |
+           v
++---------------------+
+|  DashboardData      |
+|---------------------|
+| Thread‑safe store   |
+| Atomic metrics      |
++----------+----------+
+           |
+           v
++---------------------+
+| WebSocket Server    |
+|---------------------|
+| JSON push updates   |
+| Timer‑based send    |
++---------------------+
+           |
+           v
++---------------------+
+| External Dashboard  |
+| (Web / Desktop UI)  |
++---------------------+
 ```
 
 ---
 
-## 📄 License
+## 📁 Project Structure
 
-This project is licensed under the terms found in [LICENCE.txt](LICENCE.txt).
+```
+WinAgent/
+├── CMakeLists.txt
+├── main.cpp
+├── src/
+│   ├── MainWindow.cpp
+│   ├── DashboardServer.cpp
+│   ├── DashboardWebSocketServer.cpp
+│   └── modules/
+│       ├── CPUMonitor.cpp
+│       ├── MemoryMonitor.cpp
+│       ├── NetworkMonitor.cpp
+│       ├── AudioMonitor.cpp
+│       ├── AudioDeviceMonitor.cpp
+│       ├── MediaMonitor.cpp
+│       ├── LauncherMonitor.cpp
+│       └── AudezeMonitor.cpp
+├── include/
+│   ├── DashboardData.h
+│   ├── DashboardServer.h
+│   ├── DashboardWebSocketServer.h
+│   ├── BaseMonitor.h
+│   ├── ModuleFactory.h
+│   └── modules/
+└── .idea/
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Windows 10 / 11
+- **Qt 6.x**
+- **CMake ≥ 3.20**
+- MSVC (Visual Studio 2022 recommended)
+- HIDAPI (included for Windows)
+
+---
+
+### Build Instructions
+
+```bash
+git clone https://github.com/your-org/winagent.git
+cd winagent
+
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+```
+
+---
+
+## 🌐 WebSocket API
+
+WinAgent exposes a WebSocket server that periodically broadcasts JSON messages.
+
+### Example Payload
+
+```json
+{
+  "cmd": "cpuUpdate",
+  "payload": {
+    "usage": 7.43
+  }
+}
+```
+
+### Design Notes
+
+- Push‑only (no polling)
+- Centralized `DashboardData` store
+- All monitors write, WebSocket server reads
+- Lock‑free where possible (atomics)
+
+---
+
+## 🧩 Adding a New Monitor
+
+1. Create a new class inheriting from `BaseMonitor`
+2. Implement:
+    - `start()`
+    - `stop()`
+    - data update logic
+3. Register it in `ModuleFactory`
+4. Write to `DashboardData`
+
+That’s it — the data will automatically flow to the dashboard 🚀
+
+---
+
+## 🔒 Thread Safety
+
+- Shared state lives in `DashboardData`
+- Uses `std::atomic` and fine‑grained locking
+- Monitors run independently
+- WebSocket server reads on a timer thread
+
+---
+
+## 🎯 Project Goals
+
+- **Low overhead**
+- **Long‑running stability**
+- **Clean C++ / Qt design**
+- **Dashboard‑agnostic backend**
+- **Easy extensibility**
+
+---
+
+## 🛣 Roadmap
+
+- [ ] Authentication for WebSocket clients
+- [ ] Configurable update intervals
+- [ ] Plugin system
+- [ ] Cross‑platform support (Linux)
+
+---
+
+## 📜 License
+
+MIT License — do whatever you want, just don’t blame us 😉
+
+---
+
+## 💬 Notes
+
+This project is actively developed and designed for **serious, long‑running system agents**, not toy dashboards.  
+If you care about **correctness, performance, and maintainability**, you’re in the right place.
+
+Happy hacking ❤️

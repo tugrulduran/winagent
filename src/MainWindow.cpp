@@ -28,8 +28,8 @@ const bool autostart = true;
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupUI();
 
-    connect(&Logger::instance(), &Logger::logMessage, this, [this](const QString &msg, const QString &color) {
-        txtDebug->appendHtml(QString("<span style='color:%1;'>%2</span>").arg(color, msg.toHtmlEscaped()));
+    connect(&Logger::instance(), &Logger::logMessage, this, [this](const QString &msg, const QString &color, const bool bold) {
+        txtDebug->appendHtml(QString("<span style='color:%1; font-weight:%3;'>%2</span>").arg(color, msg.toHtmlEscaped(), QString::fromStdString(bold ? "bold" : "normal")));
     }, Qt::QueuedConnection);
 
     Logger::debug("[DEBUG] Creating monitors...");
@@ -99,8 +99,16 @@ void MainWindow::toggleServer() {
 }
 
 void MainWindow::setupUI() {
+    setWindowFlags(
+        Qt::Window
+        | Qt::CustomizeWindowHint
+        | Qt::WindowMinimizeButtonHint
+        | Qt::WindowCloseButtonHint
+    );
+
     setWindowTitle("WinAgent Dashboard Server");
     resize(1200, 600);
+    setFixedSize(1200, 600);
 
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -184,25 +192,17 @@ void MainWindow::setupUI() {
     connect(btnManualTrigger, &QPushButton::clicked, this, &MainWindow::runMonitorCycle);
     connect(btnClose, &QPushButton::clicked, qApp, &QApplication::quit);
 
-
-    /*
-    connect(btnServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
-    connect(btnClear, &QPushButton::clicked, this, &MainWindow::clearLogs);
-    connect(btnRefresh, &QPushButton::clicked, this, &MainWindow::runMonitorCycle);
-    connect(btnExit, &QPushButton::clicked, qApp, &QApplication::quit);
-
-    // Lists audio output devices in the debug log.
-    connect(btnDevices, &QPushButton::clicked, this, [this]() {
+    connect(btnListAudioDevices, &QPushButton::clicked, this, [this]() {
         auto devices = dashboard_.data.audio.devices.snapshot();
-        debugLog->appendHtml("<br><b style='color: #55aaff;'>--- ACTIVE AUDIO DEVICES ---</b>");
+        Logger::info("|||||||||| ACTIVE AUDIO DEVICES ||||||||||", true);
         for (const auto &d: devices) {
-            debugLog->appendPlainText(QString("%1 [%2] %3")
-                .arg(d.isDefault ? ">>" : "  ")
-                .arg(d.index)
-                .arg(QString::fromWCharArray(d.name.c_str())));
+            Logger::info(QString("%1 [%2] %3")
+                         .arg(d.isDefault ? " ✓ " : "")
+                         .arg(d.index)
+                         .arg(QString::fromWCharArray(d.name.c_str())
+                         ), d.isDefault);
         }
     });
-    */
 }
 
 void MainWindow::runMonitorCycle() {
