@@ -49,15 +49,20 @@ public:
 
     // Stops the worker thread and waits for it to finish.
     void stop() {
-        active = false;
-        if (workerThread.joinable()) {
-            workerThread.join();
+        if (active) {
+            active = false;
+            cv.notify_all(); // Thread uykudaysa hemen uyandır!
+
+            if (workerThread.joinable()) {
+                workerThread.join();
+            }
         }
     }
-
 protected:
     std::atomic<bool> active{false};
     std::thread workerThread;
+    std::condition_variable cv; // Eklendi
+    std::mutex cv_m;            // Eklendi
     int intervalMs;
     Dashboard* dashboard_;
 
@@ -65,9 +70,13 @@ protected:
     virtual void run() {
         while (active) {
             update();
-            std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+
+            // Sabit uyku yerine, 'active' değişene veya süre dolana kadar bekle
+            std::unique_lock<std::mutex> lk(cv_m);
+            cv.wait_for(lk, std::chrono::milliseconds(intervalMs), [this]{
+                return !active; // active false olursa hemen uyanır
+            });
         }
-    }
-};
+    }};
 
 #endif

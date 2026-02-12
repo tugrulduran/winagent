@@ -1,7 +1,6 @@
 #include "DashboardWebSocketServer.h"
 
 #include <QFile>
-#include <QDebug>
 #include <QSslKey>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -19,28 +18,23 @@ DashboardWebSocketServer::DashboardWebSocketServer(
     AudioMonitor *audio,
     MediaMonitor *media,
     AudioDeviceMonitor *audioDevice,
-    QObject *parent)
-    : QObject(parent),
-      m_server(nullptr),
-      m_launcher(launcher),
-      m_audio(audio),
-      m_audioDevice(audioDevice),
-      m_media(media) {
+    QObject *parent) : QWebSocketServer(QStringLiteral("Dashboard WS Server"), QWebSocketServer::SecureMode, parent),
+                       m_launcher(launcher),
+                       m_audio(audio),
+                       m_audioDevice(audioDevice),
+                       m_media(media),
+                       m_broadcastTimer(new QTimer(this)) {
+    m_broadcastTimer->setTimerType(Qt::CoarseTimer);
+    m_broadcastTimer->setInterval(1000);
+    connect(m_broadcastTimer, &QTimer::timeout, this, &DashboardWebSocketServer::broadcastTick);
+
+    connect(this, &QWebSocketServer::newConnection, this, &DashboardWebSocketServer::onNewConnection);
 }
 
-DashboardWebSocketServer::~DashboardWebSocketServer() {
-    stop();
-}
+DashboardWebSocketServer::~DashboardWebSocketServer() { stop(); }
 
-bool DashboardWebSocketServer::start(quint16 port) {
-    if (m_server)
-        return true;
-
-    m_server = new QWebSocketServer(
-        QStringLiteral("Dashboard WS Server"),
-        QWebSocketServer::SecureMode,
-        this
-    );
+void DashboardWebSocketServer::start() {
+    if (isListening()) return;
 
     QFile certFile("cert.pem");
     QFile keyFile("key.pem");
@@ -48,7 +42,7 @@ bool DashboardWebSocketServer::start(quint16 port) {
     if (!certFile.open(QIODevice::ReadOnly) ||
         !keyFile.open(QIODevice::ReadOnly)) {
         Logger::error("[WS] Cannot read SSL cert/key!");
-        return false;
+        return;
     }
 
     QSslCertificate cert(&certFile, QSsl::Pem);
@@ -60,57 +54,42 @@ bool DashboardWebSocketServer::start(quint16 port) {
     sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
     sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
 
-    m_server->setSslConfiguration(sslConfig);
+    setSslConfiguration(sslConfig);
 
-    connect(m_server, &QWebSocketServer::newConnection,
-            this, &DashboardWebSocketServer::onNewConnection);
-
-    if (!m_server->listen(QHostAddress::Any, port)) {
+    if (!listen(QHostAddress::Any, 3004)) {
         Logger::error("[WS] Listen failed!");
-        return false;
+        return;
     }
 
-    Logger::success("[WS] Server started! Listening on port " + QString::number(port));
-
-    m_broadcastTimer = new QTimer(this);
-    m_broadcastTimer->setInterval(1000);
-
-    connect(m_broadcastTimer, &QTimer::timeout,
-            this, &DashboardWebSocketServer::broadcastTick);
+    Logger::success("[WS] Server started! Listening on port 3004");
+    emit started();
 
     m_broadcastTimer->start();
 
-    return true;
+    Logger::success("[WS] Broadcast started with interval 1000ms.");
 }
 
 void DashboardWebSocketServer::stop() {
-    if (!m_server)
-        return;
+    if (m_broadcastTimer) m_broadcastTimer->stop();
+    if (isListening()) close();
 
-    for (auto *socket: m_clients) {
-        socket->close();
-        socket->deleteLater();
+    for (auto *client: std::as_const(m_clients)) {
+        client->close();
+        client->deleteLater();
     }
-
     m_clients.clear();
 
-    m_server->close();
-    m_server->deleteLater();
-    m_server = nullptr;
-
     Logger::error("[WS] Server stopped!");
+    emit stopped();
 }
 
 void DashboardWebSocketServer::onNewConnection() {
-    QWebSocket *socket = m_server->nextPendingConnection();
+    QWebSocket *socket = nextPendingConnection();
 
     Logger::debug("[WS] New connection from " + socket->peerAddress().toString());
 
-    connect(socket, &QWebSocket::textMessageReceived,
-            this, &DashboardWebSocketServer::onTextMessageReceived);
-
-    connect(socket, &QWebSocket::disconnected,
-            this, &DashboardWebSocketServer::onSocketDisconnected);
+    connect(socket, &QWebSocket::textMessageReceived, this, &DashboardWebSocketServer::onTextMessageReceived);
+    connect(socket, &QWebSocket::disconnected, this, &DashboardWebSocketServer::onSocketDisconnected);
 
     m_clients.insert(socket);
     emit clientConnected();
@@ -118,8 +97,7 @@ void DashboardWebSocketServer::onNewConnection() {
 
 void DashboardWebSocketServer::onSocketDisconnected() {
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
-    if (!socket)
-        return;
+    if (!socket) return;
 
     Logger::debug("[WS] Socket disconnected from " + socket->peerAddress().toString());
 
@@ -173,6 +151,11 @@ void DashboardWebSocketServer::handleSetAudioDevice(const QJsonObject &payload) 
     m_audioDevice->setDefaultByIndex(deviceIndex);
 
     Logger::info("[AUDIODEVICE] Set audio device: " + QString::number(deviceIndex));
+
+    QTimer::singleShot(100, this, [&] {
+        m_audioDevice->update();
+        broadcastJson();
+    });
 }
 
 void DashboardWebSocketServer::handleRunAction(const QJsonObject &payload) {
@@ -203,7 +186,15 @@ void DashboardWebSocketServer::handleMediaCtrl(const QJsonObject &payload) {
             break;
     }
 
-    Logger::info("[MEDIA] Media command: " + QString::number(subCommand) + (subCommand == MEDIA_CMD_JUMP ? QString(" %1").arg(value) : QString()));
+    Logger::info(
+        "[MEDIA] Media command: " + QString::number(subCommand) + (subCommand == MEDIA_CMD_JUMP
+                                                                       ? QString(" %1").arg(value)
+                                                                       : QString()));
+
+    QTimer::singleShot(100, this, [&] {
+        m_media->update();
+        broadcastJson();
+    });
 }
 
 void DashboardWebSocketServer::handleSetVolume(const QJsonObject &payload) {
@@ -213,6 +204,11 @@ void DashboardWebSocketServer::handleSetVolume(const QJsonObject &payload) {
     m_audio->setVolumeByPID(pid, volume);
 
     Logger::info("[AUDIO] Set volume for pid " + QString::number(pid) + ": " + QString::number(volume));
+
+    QTimer::singleShot(100, this, [&] {
+        m_audio->update();
+        broadcastJson();
+    });
 }
 
 void DashboardWebSocketServer::broadcastTick() {

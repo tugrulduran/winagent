@@ -2,14 +2,39 @@
 
 #include <QFile>
 #include <QDir>
-#include <QDebug>
 #include <QSslConfiguration>
 #include <QSslCertificate>
 #include <QSslKey>
 #include <QMimeDatabase>
 #include <QMimeType>
 
+#include "Logger.h"
+
 DashboardServer::DashboardServer(QObject* parent) : QTcpServer(parent) {}
+
+void DashboardServer::start()
+{
+    if (isListening()) {
+        return;
+    }
+
+    if (!listen(QHostAddress::AnyIPv4, 3003)) {
+        Logger::error("[WEB] Listen failed!");
+        return;
+    }
+
+    Logger::success("[WEB] Server started! Listening on port 3003");
+    emit started();
+}
+
+void DashboardServer::stop() {
+    if (!isListening())
+        return;
+
+    close();
+    Logger::error("[WEB] Server stopped!");
+    emit stopped();
+}
 
 void DashboardServer::incomingConnection(qintptr socketDescriptor)
 {
@@ -25,7 +50,7 @@ void DashboardServer::incomingConnection(qintptr socketDescriptor)
 
     if (!certFile.open(QIODevice::ReadOnly) ||
         !keyFile.open(QIODevice::ReadOnly)) {
-        qWarning() << "Cannot open cert.pem or key.pem";
+        Logger::error("[WEB] Cannot open cert.pem or key.pem");
         socket->disconnectFromHost();
         socket->deleteLater();
         return;
@@ -35,7 +60,7 @@ void DashboardServer::incomingConnection(qintptr socketDescriptor)
     QSslKey key(&keyFile, QSsl::Rsa, QSsl::Pem);
 
     if (cert.isNull() || key.isNull()) {
-        qWarning() << "Invalid SSL certificate or key";
+        Logger::error("[WEB] Invalid SSL certificate or key");
         socket->disconnectFromHost();
         socket->deleteLater();
         return;
@@ -55,7 +80,7 @@ void DashboardServer::incomingConnection(qintptr socketDescriptor)
     connect(socket, &QSslSocket::sslErrors,
             this, [](const QList<QSslError>& errors) {
         for (const auto& e : errors)
-            qWarning() << "SSL error:" << e.errorString();
+                Logger::error("[WEB] SSL error");
     });
 
     connect(socket, &QSslSocket::disconnected,

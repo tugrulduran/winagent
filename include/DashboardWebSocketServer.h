@@ -46,7 +46,7 @@ enum MediaCommand : uint8_t {
     MEDIA_CMD_S_M30 = 0xD0,
 };
 
-class DashboardWebSocketServer : public QObject {
+class DashboardWebSocketServer : public QWebSocketServer {
     Q_OBJECT
 
 public:
@@ -55,15 +55,16 @@ public:
         AudioMonitor *audio,
         MediaMonitor *media,
         AudioDeviceMonitor *audioDevice,
-        QObject *parent = nullptr);
+        QObject *parent = nullptr
+    );
 
     ~DashboardWebSocketServer() override;
 
-    bool start(quint16 port);
+public slots:
+    void start();
 
     void stop();
 
-public slots:
     void broadcastJson();
 
 signals:
@@ -72,6 +73,10 @@ signals:
     void clientDisconnected();
 
     void messageReceived(const QString &message);
+
+    void started();
+
+    void stopped();
 
 private slots:
     void onNewConnection();
@@ -83,7 +88,6 @@ private slots:
     void broadcastTick(); // 500ms callback
 
 private:
-    QWebSocketServer *m_server;
     QSet<QWebSocket *> m_clients;
     QTimer *m_broadcastTimer = nullptr;
 

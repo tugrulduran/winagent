@@ -20,7 +20,7 @@ include_directories(include)
 
 # Application sources and headers.
 # Note: headers are listed so IDEs show them nicely; CMake does not compile headers by themselves.
-add_executable(WinAgent
+add_executable(WinAgent WIN32
         main.cpp
         include/MainWindow.h
         include/ModuleFactory.h
@@ -80,6 +80,10 @@ target_link_libraries(WinAgent PRIVATE
 # Deployment logic
 install(TARGETS WinAgent
         RUNTIME DESTINATION bin
+)
+
+target_link_options(WinAgent PRIVATE
+        "/SUBSYSTEM:WINDOWS"
 )
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN)

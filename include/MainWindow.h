@@ -25,38 +25,27 @@ class AudioMonitor;
 class MediaMonitor;
 class ProcessMonitor;
 
-/*
- * MainWindow
- * ----------
- * This is the main Qt UI window.
- *
- * Responsibilities:
- * - Build the dashboard UI (labels/buttons/log area).
- * - Start all monitor modules (CPU/RAM/Network/Audio/Media/Process).
- * - Start NetworkReporter (sends monitor data over UDP).
- * - Periodically pull data from monitors and update labels (runMonitorCycle()).
- * - Start/stop an external Node.js server process on demand.
- *
- * Important:
- * - UI strings are NOT changed by request.
- * - Only comments are being cleaned and rewritten in English.
- */
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     MainWindow(QWidget *parent = nullptr);
+
     ~MainWindow();
-    DashboardWebSocketServer* wsServer = nullptr;
+
+    DashboardWebSocketServer *wsServer = nullptr;
 
 public slots:
     void startDashboardServer();
+
     void stopDashboardServer();
 
 signals:
     void dashboardServerStarted();
+
     void dashboardServerStopped();
-    void dashboardServerError(const QString& msg);
+
+    void dashboardServerError(const QString &msg);
 
 private slots:
     // Refresh the UI from the latest monitor data.
@@ -69,53 +58,50 @@ private slots:
     void toggleServer();
 
 private:
-    std::atomic_bool m_serverRunning{false};
-
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
-    Dashboard& dashboard_ = Dashboard::instance();
 
-    // UI - Dashboard
-    QLabel *lblCpu;
-    QLabel *lblRam;
-    QLabel *lblNet;
+    Dashboard &dashboard_ = Dashboard::instance();
+
+    // tabs
+    QTabWidget *tabWidget;
+    QWidget *tabDashboard;
+    QWidget *tabConfig;
+
+    // buttons
+    QPushButton *btnToggleServer;
+    QPushButton *btnManualTrigger;
+    QPushButton *btnListAudioDevices;
+    QPushButton *btnClose;
+
+    // labels
+    QLabel *lblCpuLoad;
+    QLabel *lblMemory;
+    QLabel *lblNetwork;
     QLabel *lblMedia;
-    QLabel *lblAudioApps;
+    QLabel *lblAudio;
 
-    // UI - Process (active foreground app info)
-    QLabel *lblAppIcon;
-    QLabel *lblAppName;
-
-    // UI - Debug
-    QPlainTextEdit *debugLog;
-    QLabel *statusDot;
-    QPushButton *btnServer;
-
-    // External process (Node.js server)
-    QProcess *serverProcess;
-    bool isServerRunning = false;
+    // debug
+    QPlainTextEdit *txtDebug;
 
     // Worker modules + UDP reporter
-    std::vector<std::unique_ptr<BaseMonitor>> monitors;
-
-    // Triggers UI refresh periodically
-    QTimer *cycleTimer;
+    std::vector<std::unique_ptr<BaseMonitor> > monitors;
 
     // Find a monitor by type (uses dynamic_cast).
     template<typename T>
-    T* findMonitor() {
-        for (auto& m : monitors) {
-            if (auto ptr = dynamic_cast<T*>(m.get())) return ptr;
+    T *findMonitor() {
+        for (auto &m: monitors) {
+            if (auto ptr = dynamic_cast<T *>(m.get())) return ptr;
         }
         return nullptr;
     }
 
-    QThread m_DashboardServerThread;
-    DashboardServer* m_DashboardServer = nullptr;
+    QThread *m_DashboardServerThread{nullptr};
+    DashboardServer *m_DashboardWebServer{nullptr};
+    DashboardWebSocketServer *m_DashboardSocketServer{nullptr};
+    std::atomic_bool m_serverRunning{false};
 
-protected:
-    // Called when the window is closing; used to stop threads/processes cleanly.
-    void closeEvent(QCloseEvent *event) override;
+    QTimer *m_reloadDataTimer{nullptr};
 };
 
 #endif
