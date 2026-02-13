@@ -6,10 +6,16 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows-blue?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/language-C%2B%2B17-00599C?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/framework-Qt%206-41CD52?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/build-CMake-informational?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/tests-23%2F23-brightgreen?style=for-the-badge"/>
 </p>
 
