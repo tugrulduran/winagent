@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/framework-Qt%206-41CD52?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/build-CMake-informational?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/tests-23%2F23-brightgreen?style=for-the-badge"/>
 </p>
 
 <p align="center">
@@ -17,6 +18,7 @@
   <img src="https://img.shields.io/badge/contributions-welcome-orange"/>
   <img src="https://img.shields.io/badge/status-active%20development-blueviolet"/>
 </p>
+
 
 ---
 
