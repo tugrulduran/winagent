@@ -3,9 +3,17 @@
 
 #include <thread>
 #include <atomic>
+#include <cassert>
 #include <chrono>
 
 #include "Dashboard.h"
+
+enum class ThreadState {
+    Stopped,
+    Starting,
+    Running,
+    Stopping
+};
 
 /*
  * BaseMonitor
@@ -23,14 +31,19 @@
  */
 class BaseMonitor {
 public:
+    std::atomic<ThreadState> state{ThreadState::Stopped};
+
     // ms = update interval in milliseconds.
-    BaseMonitor(int ms)
-        : intervalMs(ms), dashboard_(nullptr) {}
+    BaseMonitor(int ms) : intervalMs(ms), dashboard_(nullptr) {
+    }
 
-    BaseMonitor(int ms, Dashboard& dashboard)
-        : intervalMs(ms), dashboard_(&dashboard) {}
+    BaseMonitor(int ms, Dashboard &dashboard) : intervalMs(ms), dashboard_(&dashboard) {
+    }
 
-    virtual ~BaseMonitor() { stop(); }
+    virtual ~BaseMonitor() {
+        stop();
+        assert(state.load() == ThreadState::Stopped);
+    }
 
     // Called once at start(). Use this to create OS handles, queries, etc.
     virtual void init() = 0;
@@ -40,43 +53,77 @@ public:
 
     // Starts the worker thread. Safe to call once; repeated calls do nothing.
     void start() {
-        if (!active) {
+        std::lock_guard<std::mutex> lock(lifecycle_m);
+
+        if (state.load() != ThreadState::Stopped) { return; }
+
+        state.store(ThreadState::Starting);
+
+        try {
             init();
-            active = true;
-            workerThread = std::thread(&BaseMonitor::run, this);
+        } catch (...) {
+            // @todo: log this exception
+            state.store(ThreadState::Stopped);
+            throw;
         }
+
+        active = true;
+        state.store(ThreadState::Running);
+
+        workerThread = std::thread([this] {
+            try {
+                run();
+            } catch (...) {
+                // @todo: log this exception
+            }
+
+            active = false;
+        });
     }
 
     // Stops the worker thread and waits for it to finish.
     void stop() {
-        if (active) {
-            active = false;
-            cv.notify_all(); // Thread uykudaysa hemen uyandır!
+        std::lock_guard<std::mutex> lock(lifecycle_m);
 
-            if (workerThread.joinable()) {
-                workerThread.join();
-            }
-        }
+        if (state.load() == ThreadState::Stopped) { return; }
+
+        active = false;
+        cv.notify_all();
+
+        if (workerThread.joinable())
+            workerThread.join();
+
+        state.store(ThreadState::Stopped);
     }
+
 protected:
     std::atomic<bool> active{false};
     std::thread workerThread;
     std::condition_variable cv; // Eklendi
-    std::mutex cv_m;            // Eklendi
+    std::mutex cv_m; // Eklendi
+    std::mutex lifecycle_m;
     int intervalMs;
-    Dashboard* dashboard_;
+    Dashboard *dashboard_;
 
     // Worker loop. Derived classes normally do not override this.
     virtual void run() {
         while (active) {
-            update();
+            try {
+                update();
+            } catch (...) {
+                // @todo: log this exception
+            }
 
-            // Sabit uyku yerine, 'active' değişene veya süre dolana kadar bekle
             std::unique_lock<std::mutex> lk(cv_m);
-            cv.wait_for(lk, std::chrono::milliseconds(intervalMs), [this]{
-                return !active; // active false olursa hemen uyanır
+            cv.wait_for(lk, std::chrono::milliseconds(intervalMs), [this] {
+                return !active;
             });
         }
-    }};
+    }
+
+    bool isActive() const noexcept {
+        return active.load(std::memory_order_acquire);
+    }
+};
 
 #endif

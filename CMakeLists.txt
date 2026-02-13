@@ -87,3 +87,27 @@ target_link_options(WinAgent PRIVATE
 )
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN)
+
+include(FetchContent)
+
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+add_executable(
+        BaseMonitorTests
+        test/BaseMonitorTest.cpp
+)
+
+target_link_libraries(
+        BaseMonitorTests
+        gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(BaseMonitorTests)
