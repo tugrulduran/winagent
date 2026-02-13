@@ -219,13 +219,6 @@ void MediaMonitor::playpause() {
     });
 }
 
-void MediaMonitor::stop() {
-    executeMediaAction([](auto *session) {
-        ComPtr<IAsyncOperation<bool> > actionOp;
-        return session->TryStopAsync(&actionOp);
-    });
-}
-
 void MediaMonitor::next() {
     executeMediaAction([](auto *session) {
         ComPtr<IAsyncOperation<bool> > actionOp;

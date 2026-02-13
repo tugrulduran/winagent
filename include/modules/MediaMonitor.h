@@ -22,8 +22,6 @@ public:
     // 1: Toggle Play/Pause, 2: Next, 3: Prev, 4/5: Seek +/- 10 seconds
     void playpause();
 
-    void stop();
-
     void next();
 
     void prev();
