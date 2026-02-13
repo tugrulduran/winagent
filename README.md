@@ -5,23 +5,12 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows-blue?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/platform-Windows-blue"/>
+  <img src="https://img.shields.io/badge/build-CMake-informational"/>
+  <img src="https://img.shields.io/badge/language-C%2B%2B17-00599C"/>
+  <img src="https://img.shields.io/badge/framework-Qt%206-41CD52"/>
+  <img src="https://img.shields.io/badge/tests-23%2F23-brightgreen"/>
 </p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/language-C%2B%2B17-00599C?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/framework-Qt%206-41CD52?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/build-CMake-informational?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/tests-23%2F23-brightgreen?style=for-the-badge"/>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/open--source-%E2%9C%94-brightgreen"/>
-  <img src="https://img.shields.io/badge/contributions-welcome-orange"/>
-  <img src="https://img.shields.io/badge/status-active%20development-blueviolet"/>
-</p>
-
 
 ---
 
@@ -144,7 +133,7 @@ WinAgent/
 ### 🔧 Build Instructions
 
 ```bash
-git clone https://github.com/your-org/winagent.git
+git clone https://github.com/tugrulduran/winagent.git
 cd winagent
 
 mkdir build
@@ -182,17 +171,6 @@ WinAgent is designed to be **long‑running** (days / weeks uptime).
 ## 🌐 WebSocket API
 
 WinAgent exposes a **push‑only WebSocket server**.
-
-### Example Message
-
-```json
-{
-  "cmd": "cpuUpdate",
-  "payload": {
-    "usage": 7.43
-  }
-}
-```
 
 ### Design Principles
 
@@ -244,8 +222,7 @@ This design minimizes contention and avoids hidden dependencies.
 ## 🛣 Roadmap
 
 - [ ] Authentication for WebSocket clients
-- [ ] Configurable update intervals
-- [ ] YAML / JSON config file
+- [ ] Configurable system variables
 - [ ] Plugin loading (DLL‑based)
 - [ ] Linux support
 
@@ -284,3 +261,11 @@ WinAgent is built for developers who care about:
 **correctness, performance, and architectural sanity**.
 
 If that sounds like you — welcome aboard 🚀
+
+---
+
+<p align="center">
+  <img src="https://img.shields.io/badge/open--source-%E2%9C%94-brightgreen"/>
+  <img src="https://img.shields.io/badge/license-MIT-green"/>
+  <img src="https://img.shields.io/badge/contributions-welcome-orange"/>
+</p>
