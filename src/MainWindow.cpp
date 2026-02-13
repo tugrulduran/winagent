@@ -237,8 +237,8 @@ void MainWindow::runMonitorCycle() {
             );
         }
         else if (auto m = dynamic_cast<MediaMonitor *>(monitor.get())) {
-            if (dashboard_.data.media.source != MEDIA_SOURCE_NO_MEDIA) {
-                lblMedia->setText(QString("%1").arg(QString::fromStdWString(dashboard_.data.media.title)));
+            if (dashboard_.data.media.getSource() != MEDIA_SOURCE_NO_MEDIA) {
+                lblMedia->setText(QString("%1").arg(QString::fromStdWString(dashboard_.data.media.getTitle())));
             }
             else {
                 lblMedia->setText("Idle");

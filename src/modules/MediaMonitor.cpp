@@ -14,15 +14,34 @@ using namespace Microsoft::WRL::Wrappers;
 using namespace ABI::Windows::Media::Control;
 using namespace ABI::Windows::Foundation;
 
-MediaMonitor::~MediaMonitor() {
-    stop();
-    RoUninitialize();
-}
+namespace {
 
-void MediaMonitor::init() {
-    // WinRT initialization for this thread.
-    RoInitialize(RO_INIT_MULTITHREADED);
-}
+    class ScopedWinRT {
+    public:
+        ScopedWinRT() {
+            hr_ = RoInitialize(RO_INIT_MULTITHREADED);
+            if (hr_ == RPC_E_CHANGED_MODE) {
+                hr_ = RoInitialize(RO_INIT_SINGLETHREADED);
+            }
+        }
+
+        ~ScopedWinRT() {
+            if (SUCCEEDED(hr_)) {
+                RoUninitialize();
+            }
+        }
+
+        bool ok() const { return SUCCEEDED(hr_); }
+
+    private:
+        HRESULT hr_{E_FAIL};
+    };
+
+} // namespace
+
+MediaMonitor::~MediaMonitor() {}
+
+void MediaMonitor::init() {}
 
 void MediaMonitor::cleanTitle(std::wstring &title) {
     // Remove common suffixes that browsers/media apps add to window titles.
@@ -50,10 +69,10 @@ void MediaMonitor::update() {
     // Use Windows Global System Media Transport Controls to get playback state and timeline.
     //
     // This code uses WinRT async operations and waits for completion in a simple loop.
-    static thread_local bool threadInit = false;
-    if (!threadInit) {
-        RoInitialize(RO_INIT_MULTITHREADED);
-        threadInit = true;
+    static thread_local ScopedWinRT winrt;
+    if (!winrt.ok()) {
+        dashboard_->data.media.clear();
+        return;
     }
 
     uint8_t media_source = MEDIA_SOURCE_NO_MEDIA;
@@ -180,7 +199,8 @@ void MediaMonitor::update() {
 }
 
 void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTransportControlsSession *)> action) {
-    HRESULT hrInit = RoInitialize(RO_INIT_MULTITHREADED);
+    ScopedWinRT winrt;
+    if (!winrt.ok()) return;
 
     ComPtr<IGlobalSystemMediaTransportControlsSessionManagerStatics> managerStatics;
     if (SUCCEEDED(RoGetActivationFactory(
@@ -208,8 +228,6 @@ void MediaMonitor::executeMediaAction(std::function<HRESULT(IGlobalSystemMediaTr
             }
         }
     }
-
-    if (SUCCEEDED(hrInit)) RoUninitialize();
 }
 
 void MediaMonitor::playpause() {

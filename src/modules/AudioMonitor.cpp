@@ -13,13 +13,19 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
 
+class ScopedCOM {
+public:
+    ScopedCOM() { initialized = SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)); }
+    ~ScopedCOM() { if (initialized) CoUninitialize(); }
+private:
+    bool initialized{false};
+};
+
 AudioMonitor::~AudioMonitor() {
     stop();
-    CoUninitialize();
 }
 
 void AudioMonitor::init() {
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
 }
 
 std::wstring AudioMonitor::GetFriendlyName(const std::wstring &filePath) {
@@ -49,6 +55,8 @@ std::wstring AudioMonitor::GetFriendlyName(const std::wstring &filePath) {
 }
 
 void AudioMonitor::update() {
+    ScopedCOM com;
+
     IMMDeviceEnumerator *pEnumerator = NULL;
     IMMDevice *pDevice = NULL;
     IAudioSessionManager2 *pSessionManager = NULL;
@@ -143,6 +151,8 @@ void AudioMonitor::update() {
 }
 
 void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
+    ScopedCOM com;
+
     // Clamp volume into the expected range.
     if (newVolume < 0.0f) newVolume = 0.0f;
     if (newVolume > 1.0f) newVolume = 1.0f;
@@ -153,9 +163,15 @@ void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
     IAudioSessionManager2 *pSessionManager = NULL;
     IAudioSessionEnumerator *pSessionEnumerator = NULL;
 
-    CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
-                     (void **) &pEnumerator);
-    pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                  __uuidof(IMMDeviceEnumerator), (void **)&pEnumerator);
+    if (FAILED(hr) || !pEnumerator) return;
+
+    hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+    if (FAILED(hr) || !pDevice) {
+        pEnumerator->Release();
+        return;
+    }
 
     // --- MASTER VOLUME ---
     if (targetPid == 0xFFFFFFFF) {
@@ -211,10 +227,9 @@ void AudioMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
     if (pEnumerator) pEnumerator->Release();
 }
 
-bool AudioMonitor::IsIgnored(const std::wstring& name) {
-    for (const auto& ignored : ignoreList) {
+bool AudioMonitor::IsIgnored(const std::wstring &name) {
+    for (const auto &ignored: ignoreList) {
         if (name.find(ignored) != std::wstring::npos) return true;
     }
     return false;
 }
-

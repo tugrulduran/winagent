@@ -5,6 +5,8 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 #include "Dashboard.h"
 

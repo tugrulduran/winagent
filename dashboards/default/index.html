@@ -352,32 +352,49 @@
 </script>
 <script src="https://kit.fontawesome.com/9b70f3b7e0.js" crossorigin="anonymous"></script>
 <script>
-  const ws = new WebSocket('wss://10.0.0.51:3004');
+  let ws;
+  const wsUrl = 'wss://10.0.0.51:3004';
+  const reconnectInterval = 1000;
 
-  ws.onopen = () => {
-    console.log('Connected to server');
-    // ws.send(JSON.stringify({ cmd: "runAction", payload: { action: 1} }));
-  };
-  ws.onmessage = (e) => {
-    // console.log('RAW DATA:', e.data);
-    const data = JSON.parse(e.data);
-    const event = data.event;
-    const payload = data.payload;
-    if (event === 'update') {
-      console.log('UPDATE EVENT:', payload);
-      updateCPU(payload.system.cpu.load);
-      updateRAM(payload.system.ram.total / 1024 / 1024 / 1024, payload.system.ram.used / 1024 / 1024 / 1024);
-      updateNet(payload.system.network.rx, payload.system.network.tx);
-      updateAudioApps(payload.audio.apps);
-      updateAudioDevices(payload.audio.devices);
-      updateAudioAudeze(payload.audio.audeze);
-      updateMedia(payload.media);
-      updateLauncherActions(payload.launcher.actions);
-    }
-  };
-  ws.onclose = () => {
-    console.log('Connection closed');
-  };
+  function connect() {
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('Connected to server');
+      // ws.send(JSON.stringify({ cmd: "runAction", payload: { action: 1} }));
+    };
+    ws.onmessage = (e) => {
+      // console.log('RAW DATA:', e.data);
+      const data = JSON.parse(e.data);
+      const event = data.event;
+      const payload = data.payload;
+      if (event === 'update') {
+        console.log('UPDATE EVENT:', payload);
+        updateCPU(payload.system.cpu.load);
+        updateRAM(payload.system.ram.total / 1024 / 1024 / 1024, payload.system.ram.used / 1024 / 1024 / 1024);
+        updateNet(payload.system.network.rx, payload.system.network.tx);
+        updateAudioApps(payload.audio.apps);
+        updateAudioDevices(payload.audio.devices);
+        updateAudioAudeze(payload.audio.audeze);
+        updateMedia(payload.media);
+        updateLauncherActions(payload.launcher.actions);
+      }
+    };
+    ws.onclose = (e) => {
+      console.log(`Socket closed. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
+      // Bağlantı koptuğunda 1 saniye sonra tekrar connect() çağır
+      setTimeout(() => {
+        connect();
+      }, reconnectInterval);
+    };
+
+    ws.onerror = (err) => {
+      console.error('Socket encountered error: ', err.message, 'Closing socket');
+      ws.close();
+    };
+  }
+
+  connect();
 
   function updateCPU(load) {
     document.getElementById('cpu-fill').style.width = load + '%';
@@ -385,7 +402,7 @@
   }
 
   function updateRAM(total, used) {
-    document.getElementById('ram-fill').style.width = used + '%';
+    document.getElementById('ram-fill').style.width = (used / total) + '%';
     document.getElementById('ram-text').innerText = Math.round(used / total * 100) + '%';
   }
 

@@ -34,6 +34,11 @@ DashboardWebSocketServer::DashboardWebSocketServer(
 DashboardWebSocketServer::~DashboardWebSocketServer() { stop(); }
 
 void DashboardWebSocketServer::start() {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, "start", Qt::QueuedConnection);
+        return;
+    }
+
     if (isListening()) return;
 
     QFile certFile("cert.pem");
@@ -70,10 +75,16 @@ void DashboardWebSocketServer::start() {
 }
 
 void DashboardWebSocketServer::stop() {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, "stop", Qt::QueuedConnection);
+        return;
+    }
+
     if (m_broadcastTimer) m_broadcastTimer->stop();
     if (isListening()) close();
 
     for (auto *client: std::as_const(m_clients)) {
+        if (!client) continue;
         client->close();
         client->deleteLater();
     }
@@ -134,13 +145,17 @@ void DashboardWebSocketServer::onTextMessageReceived(const QString &message) {
 void DashboardWebSocketServer::handleEvent(const QString &cmd, const QJsonObject &payload) {
     if (cmd == "setAudioDevice") {
         handleSetAudioDevice(payload);
-    } else if (cmd == "runAction") {
+    }
+    else if (cmd == "runAction") {
         handleRunAction(payload);
-    } else if (cmd == "mediaCtrl") {
+    }
+    else if (cmd == "mediaCtrl") {
         handleMediaCtrl(payload);
-    } else if (cmd == "setVolume") {
+    }
+    else if (cmd == "setVolume") {
         handleSetVolume(payload);
-    } else {
+    }
+    else {
         Logger::error("[WS] Unknown WS event: " + cmd);
     }
 }
@@ -187,9 +202,12 @@ void DashboardWebSocketServer::handleMediaCtrl(const QJsonObject &payload) {
     }
 
     Logger::info(
-        "[MEDIA] Media command: " + QString::number(subCommand) + (subCommand == MEDIA_CMD_JUMP
-                                                                       ? QString(" %1").arg(value)
-                                                                       : QString()));
+        "[MEDIA] Media command: " +
+        QString::number(subCommand) +
+        (subCommand == MEDIA_CMD_JUMP
+             ? QString(" %1").arg(value)
+             : QString())
+    );
 
     QTimer::singleShot(100, this, [&] {
         m_media->update();
@@ -216,6 +234,11 @@ void DashboardWebSocketServer::broadcastTick() {
 }
 
 void DashboardWebSocketServer::broadcastJson() {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, "broadcastJson", Qt::QueuedConnection);
+        return;
+    }
+
     if (m_clients.isEmpty())
         return;
 
@@ -243,8 +266,9 @@ void DashboardWebSocketServer::broadcastJson() {
     network["rx"] = static_cast<qint64>(data.network.getRxBytes());
     network["tx"] = static_cast<qint64>(data.network.getTxBytes());
     QJsonObject activeProcess;
-    activeProcess["pid"] = static_cast<qint64>(data.process.getActiveProcess().id);
-    activeProcess["name"] = QString::fromStdString(data.process.getActiveProcess().name);
+    const SysProcess proc = data.process.getActiveProcess();
+    activeProcess["pid"] = static_cast<qint64>(proc.id);
+    activeProcess["name"] = QString::fromStdString(proc.name);
     processes["active"] = activeProcess;
 
     system["cpu"] = cpu;
@@ -274,12 +298,14 @@ void DashboardWebSocketServer::broadcastJson() {
         devicesArray.append(obj);
     }
 
-    media["source"] = static_cast<qint64>(data.media.source);
-    if (data.media.source != MEDIA_SOURCE_NO_MEDIA) {
-        media["title"] = QString::fromWCharArray(data.media.title.c_str());
-        media["duration"] = static_cast<qint64>(data.media.duration);
-        media["currentTime"] = static_cast<qint64>(data.media.currentTime);
-        media["isPlaying"] = static_cast<bool>(data.media.isPlaying);
+    const uint8_t mediaSource = data.media.getSource();
+    media["source"] = static_cast<qint64>(mediaSource);
+    if (mediaSource != MEDIA_SOURCE_NO_MEDIA) {
+        const std::wstring title = data.media.getTitle();
+        media["title"] = QString::fromWCharArray(title.c_str());
+        media["duration"] = static_cast<qint64>(data.media.getDuration());
+        media["currentTime"] = static_cast<qint64>(data.media.getCurrentTime());
+        media["isPlaying"] = data.media.getIsPlaying();
     }
 
     audeze["battery"] = static_cast<qint64>(data.audeze.getBattery());
@@ -308,7 +334,9 @@ void DashboardWebSocketServer::broadcastJson() {
     QJsonDocument doc(root);
     const QString json = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 
-    for (QWebSocket *socket: m_clients) {
+    const auto clients = m_clients;   // snapshot
+    for (QWebSocket *socket: clients) {
+        if (!socket) continue;
         if (socket->state() == QAbstractSocket::ConnectedState) {
             socket->sendTextMessage(json);
         }

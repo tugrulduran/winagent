@@ -4,6 +4,11 @@
 #include <cstdint>
 #include <mutex>
 #include <unordered_set>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 struct CPUData {
 private:
@@ -139,8 +144,9 @@ public:
         std::lock_guard<std::mutex> lock(mutex);
 
         std::erase_if(list, [&](const std::unique_ptr<AppAudioData>& app) {
-            if (app->pid == 0xFFFFFFFF) return false;
-            return !alive.contains(app->pid.load(std::memory_order_relaxed));
+            const uint64_t pid = app->pid.load(std::memory_order_relaxed);
+            if (pid == 0xFFFFFFFFULL) return false;
+            return !alive.contains(pid);
         });
     }
 
@@ -317,9 +323,12 @@ struct LauncherAction {
 struct LauncherData {
 private:
     std::vector<LauncherAction> list;
+    mutable std::mutex listMutex;
 
 public:
     std::vector<LauncherAction> getActions() const {
+        std::lock_guard<std::mutex> lock(listMutex);
+
         std::vector<LauncherAction> out;
         out.reserve(list.size());
 
@@ -336,6 +345,8 @@ public:
     }
 
     void add(uint32_t id, const std::wstring &name, const std::string &execPath) {
+        std::lock_guard<std::mutex> lock(listMutex);
+
         LauncherAction item;
         item.id = id;
         item.name = name;
@@ -356,6 +367,7 @@ enum MediaSource : uint8_t {
 };
 
 struct MediaData {
+private:
     std::wstring title;
     mutable std::mutex titleMutex;
 
@@ -364,6 +376,7 @@ struct MediaData {
     std::atomic<uint64_t> currentTime{0};
     std::atomic<bool> isPlaying{false};
 
+public:
     void set(const std::wstring &newTitle, const uint8_t newSource, const uint64_t newDuration,
              const uint64_t newCurrentTime, const bool playing) { {
             std::lock_guard<std::mutex> lock(titleMutex);
@@ -386,6 +399,16 @@ struct MediaData {
         currentTime.store(0, std::memory_order_relaxed);
         isPlaying.store(false, std::memory_order_relaxed);
     }
+
+    // Thread-safe read helpers (avoid data races in readers like WS/GUI threads)
+    std::wstring getTitle() const {
+        std::lock_guard<std::mutex> lock(titleMutex);
+        return title;
+    }
+    uint8_t getSource() const { return source.load(std::memory_order_relaxed); }
+    uint64_t getDuration() const { return duration.load(std::memory_order_relaxed); }
+    uint64_t getCurrentTime() const { return currentTime.load(std::memory_order_relaxed); }
+    bool getIsPlaying() const { return isPlaying.load(std::memory_order_relaxed); }
 };
 
 struct DashboardData {
