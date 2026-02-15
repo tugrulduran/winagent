@@ -1,13 +1,13 @@
-set(PLUGIN_NAME "basiccpu")
-set(tgt WinAgentPlugin_basiccpu)
+set(PLUGIN_NAME "basicmemory")
+set(tgt WinAgentPlugin_basicmemory)
 
 add_library(${tgt} SHARED ${PROJECT_SOURCE_DIR}/src/BasePlugin.cpp Plugin.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/CpuSampler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/RamSampler.cpp
 )
 
 target_compile_definitions(${tgt} PRIVATE WA_BUILDING_PLUGIN)
 target_include_directories(${tgt} PRIVATE ${PROJECT_SOURCE_DIR}/include src)
-target_link_libraries(${tgt} PRIVATE Qt6::Core pdh)
+target_link_libraries(${tgt} PRIVATE Qt6::Core)
 
 if (TARGET WinAgent)
     set_target_properties(${tgt} PROPERTIES

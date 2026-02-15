@@ -26,7 +26,6 @@ protected:
     }
 
     void onStop() override {
-        // Nothing external, but still log it
     }
 
     QJsonObject onTick() override {
