@@ -1,0 +1,8 @@
+{
+  "intervalMs": 1000,
+  "seed": 1337,
+  "noise": 0.25,
+  "emitLogEveryNTicks": 3,
+  "maxLogEntries": 64,
+  "nameTag": "local-dev"
+}

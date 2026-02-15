@@ -4,11 +4,10 @@
 #include <QWebSocket>
 #include <QSet>
 
-#include "modules/AudioDeviceMonitor.h"
-
 class LauncherMonitor;
 class AudioMonitor;
 class MediaMonitor;
+class PluginManager;
 
 // Module Ids
 enum ModuleId : uint8_t {
@@ -51,10 +50,7 @@ class DashboardWebSocketServer : public QWebSocketServer {
 
 public:
     explicit DashboardWebSocketServer(
-        LauncherMonitor *launcher,
-        AudioMonitor *audio,
-        MediaMonitor *media,
-        AudioDeviceMonitor *audioDevice,
+        PluginManager *plugins,
         QObject *parent = nullptr
     );
 
@@ -91,10 +87,7 @@ private:
     QSet<QWebSocket *> m_clients;
     QTimer *m_broadcastTimer = nullptr;
 
-    LauncherMonitor *m_launcher;
-    AudioMonitor *m_audio;
-    MediaMonitor *m_media;
-    AudioDeviceMonitor *m_audioDevice;
+    PluginManager *m_plugins;
 
     void handleEvent(const QString &event, const QJsonObject &data);
 
@@ -106,4 +99,7 @@ private:
     void handleMediaCtrl(const QJsonObject &data);
 
     void handleSetVolume(const QJsonObject &data);
+
+    // Generic module request: {"module":"cpu", "payload":{...}}
+    void handleModuleRequest(const QJsonObject &data);
 };

@@ -3,20 +3,16 @@
 #include <iostream>
 #include <QDateTime>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QScrollBar>
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonObject>
+#include <QDesktopServices>
+#include <QUrl>
 
 #include "Logger.h"
-#include "ModuleFactory.h"
-#include "modules/CPUMonitor.h"
-#include "modules/MemoryMonitor.h"
-#include "modules/NetworkMonitor.h"
-#include "modules/AudioMonitor.h"
-#include "modules/MediaMonitor.h"
-#include "modules/AudioDeviceMonitor.h"
 
 const QString btnServerOnStyle =
         "QPushButton { background: #0a0; color: white; } QPushButton:hover { background: #a00; }";
@@ -33,31 +29,36 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     }, Qt::QueuedConnection);
 
     Logger::debug("[DEBUG] Creating monitors...");
-    monitors = ModuleFactory::createAll();
-    for (auto &m: monitors) { m->start(); }
+
+    // Load external plugins from: <exe_dir>/plugins
+    const QString pluginDir = QCoreApplication::applicationDirPath() + "/plugins";
+    plugins_.loadFromDir(pluginDir, nullptr);
 
     Logger::debug("[DEBUG] Creating servers...");
     m_DashboardServerThread = new QThread(this);
     m_DashboardWebServer = new DashboardServer();
     m_DashboardSocketServer = new DashboardWebSocketServer(
-        findMonitor<LauncherMonitor>(),
-        findMonitor<AudioMonitor>(),
-        findMonitor<MediaMonitor>(),
-        findMonitor<AudioDeviceMonitor>(),
+        &plugins_,
         nullptr);
     m_DashboardWebServer->moveToThread(m_DashboardServerThread);
     m_DashboardSocketServer->moveToThread(m_DashboardServerThread);
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardWebServer, &DashboardServer::deleteLater);
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardSocketServer, &DashboardWebSocketServer::deleteLater);
 
-    connect(m_DashboardWebServer, &DashboardServer::started, this, [this]() {
+    connect(m_DashboardWebServer, &DashboardServer::started, this, [this](const QString &url) {
         m_serverRunning.store(true);
         btnToggleServer->setText("Stop Dashboard Server");
         btnToggleServer->setStyleSheet(btnServerOnStyle);
         Logger::success("[DASH] Server started");
+
+        m_dashboardUrl = QUrl(url);
+        btnOpenDashboard->setEnabled(m_dashboardUrl.isValid());
     });
 
     connect(m_DashboardWebServer, &DashboardServer::stopped, this, [this]() {
+        m_dashboardUrl = QUrl();
+        btnOpenDashboard->setEnabled(false);
+
         m_serverRunning.store(false);
         btnToggleServer->setText("Start Dashboard Server");
         btnToggleServer->setStyleSheet(btnServerOffStyle);
@@ -90,7 +91,7 @@ MainWindow::~MainWindow() {
         m_DashboardServerThread->wait();
     }
 
-    for (auto &m: monitors) { m->stop(); }
+    plugins_.stopAll();
 }
 
 void MainWindow::toggleServer() {
@@ -136,6 +137,11 @@ void MainWindow::setupUI() {
     btnListAudioDevices = new QPushButton("List Audio Devices", tabDashboard);
     btnListAudioDevices->setGeometry(940, 130, 250, 51);
     btnListAudioDevices->setFont(btnFont);
+
+    btnOpenDashboard = new QPushButton("Open Dashboard", tabDashboard);
+    btnOpenDashboard->setGeometry(940, 190, 250, 51);
+    btnOpenDashboard->setFont(btnFont);
+    btnOpenDashboard->setEnabled(false); // server yokken disabled
 
     btnClose = new QPushButton("Close", tabDashboard);
     btnClose->setGeometry(940, 250, 250, 51);
@@ -203,21 +209,30 @@ void MainWindow::setupUI() {
                          ), d.isDefault);
         }
     });
+
+    connect(btnOpenDashboard, &QPushButton::clicked, this, [this]() {
+        if (m_dashboardUrl.isValid()) {
+            QDesktopServices::openUrl(m_dashboardUrl);
+        }
+    });
 }
 
 void MainWindow::runMonitorCycle() {
+    // CPU is now provided by an external plugin (cpu.dll), so no dynamic_cast.
+    {
+        const auto cpuload = dashboard_.data.cpu.getLoad();
+        const auto cpucores = dashboard_.data.cpu.getCores();
+        lblCpuLoad->setText(QString("%1% (%2 cores)")
+            .arg(cpuload, 0, 'f', 1)
+            .arg(cpucores));
+    }
+
     // Pull the latest data from each monitor and update labels.
     // Each monitor returns a copy (thread-safe), so the UI never holds monitor locks.
 
+    /*
     for (const auto &monitor: monitors) {
-        if (auto m = dynamic_cast<CPUMonitor *>(monitor.get())) {
-            auto cpuload = dashboard_.data.cpu.getLoad();
-            auto cpucores = dashboard_.data.cpu.getCores();
-            lblCpuLoad->setText(QString("%1% (%2 cores)")
-                .arg(cpuload, 0, 'f', 1)
-                .arg(cpucores));
-        }
-        else if (auto m = dynamic_cast<MemoryMonitor *>(monitor.get())) {
+        if (auto m = dynamic_cast<MemoryMonitor *>(monitor.get())) {
             auto totalMem = dashboard_.data.memory.getTotal() / 1024.0 / 1024.0 / 1024.0;
             auto usedMem = dashboard_.data.memory.getUsed() / 1024.0 / 1024.0 / 1024.0;
             auto percent = usedMem / totalMem;
@@ -281,8 +296,9 @@ void MainWindow::runMonitorCycle() {
                 lblAppIcon->setPixmap(pix.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             }
         }
-    */
+    #1#
     }
+*/
 }
 
 void MainWindow::clearLogs() {

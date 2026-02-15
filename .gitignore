@@ -1,6 +1,10 @@
 # CMake build directories
-cmake-build-*/
+build
+dist
 installer/
+cmake-build-*/
+certs/*.pem
+
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake

@@ -17,7 +17,7 @@ public slots:
 signals:
     void finished();
 
-    void started();
+    void started(const QString& url);
 
     void stopped();
 

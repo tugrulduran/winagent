@@ -14,11 +14,11 @@
 #include <memory>
 #include <vector>
 
-#include "BaseMonitor.h"
+#include "Dashboard.h"
+#include "PluginManager.h"
 #include "DashboardServer.h"
 #include "DashboardWebSocketServer.h"
 
-class CPUMonitor;
 class MemoryMonitor;
 class NetworkMonitor;
 class AudioMonitor;
@@ -60,8 +60,10 @@ private slots:
 private:
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
+    void openDashboard();
 
     Dashboard &dashboard_ = Dashboard::instance();
+    QUrl m_dashboardUrl;
 
     // tabs
     QTabWidget *tabWidget;
@@ -73,6 +75,7 @@ private:
     QPushButton *btnManualTrigger;
     QPushButton *btnListAudioDevices;
     QPushButton *btnClose;
+    QPushButton* btnOpenDashboard;
 
     // labels
     QLabel *lblCpuLoad;
@@ -84,17 +87,9 @@ private:
     // debug
     QPlainTextEdit *txtDebug;
 
-    // Worker modules + UDP reporter
-    std::vector<std::unique_ptr<BaseMonitor> > monitors;
+    // External plugin DLLs (loaded from <exe_dir>/plugins)
+    PluginManager plugins_;
 
-    // Find a monitor by type (uses dynamic_cast).
-    template<typename T>
-    T *findMonitor() {
-        for (auto &m: monitors) {
-            if (auto ptr = dynamic_cast<T *>(m.get())) return ptr;
-        }
-        return nullptr;
-    }
 
     QThread *m_DashboardServerThread{nullptr};
     DashboardServer *m_DashboardWebServer{nullptr};

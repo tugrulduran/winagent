@@ -353,7 +353,7 @@
 <script src="https://kit.fontawesome.com/9b70f3b7e0.js" crossorigin="anonymous"></script>
 <script>
   let ws;
-  const wsUrl = 'wss://10.0.0.51:3004';
+  const wsUrl = `wss://${window.location.hostname}:3004`;
   const reconnectInterval = 1000;
 
   function connect() {
@@ -370,14 +370,14 @@
       const payload = data.payload;
       if (event === 'update') {
         console.log('UPDATE EVENT:', payload);
-        updateCPU(payload.system.cpu.load);
-        updateRAM(payload.system.ram.total / 1024 / 1024 / 1024, payload.system.ram.used / 1024 / 1024 / 1024);
-        updateNet(payload.system.network.rx, payload.system.network.tx);
-        updateAudioApps(payload.audio.apps);
-        updateAudioDevices(payload.audio.devices);
-        updateAudioAudeze(payload.audio.audeze);
-        updateMedia(payload.media);
-        updateLauncherActions(payload.launcher.actions);
+        if ('cpu' in payload.modules) { updateCPU(payload.modules.cpu); }
+        if ('memory' in payload.modules) { updateRAM(payload.modules.memory); }
+        if ('network' in payload.modules) { updateNet(payload.modules.network); }
+        if ('audio' in payload.modules) { updateAudioApps(payload.modules.audio); }
+        if ('audiodevice' in payload.modules) { updateAudioDevices(payload.modules.audiodevice); }
+        if ('audeze' in payload.modules) { updateAudioAudeze(payload.modules.audeze); }
+        if ('media' in payload.modules) { updateMedia(payload.modules.media); }
+        if ('launcher' in payload.modules) { updateLauncherActions(payload.modules.launcher); }
       }
     };
     ws.onclose = (e) => {
@@ -396,19 +396,19 @@
 
   connect();
 
-  function updateCPU(load) {
-    document.getElementById('cpu-fill').style.width = load + '%';
-    document.getElementById('cpu-text').innerText = Math.round(load) + '%';
+  function updateCPU(data) {
+    document.getElementById('cpu-fill').style.width = data.load + '%';
+    document.getElementById('cpu-text').innerText = Math.round(data.load) + '%';
   }
 
-  function updateRAM(total, used) {
-    document.getElementById('ram-fill').style.width = (used / total) + '%';
-    document.getElementById('ram-text').innerText = Math.round(used / total * 100) + '%';
+  function updateRAM(data) {
+    document.getElementById('ram-fill').style.width = (100 * data.usedBytes / data.totalBytes) + '%';
+    document.getElementById('ram-text').innerText = Math.round(data.availBytes / 1024 / 1024 / 1024) + 'GB';
   }
 
-  function updateNet(inBps, outBps) {
-    const inKB = inBps / 1024.0;
-    const outKB = outBps / 1024.0;
+  function updateNet(data) {
+    const inKB = data.rxBytesPerSec / 1024.0;
+    const outKB = data.txBytesPerSec / 1024.0;
     let inVal = Math.round(inKB) + ' KB/s';
     let outVal = Math.round(outKB) + ' KB/s';
     if (inKB > 1000) {
@@ -424,7 +424,8 @@
     document.getElementById('net-out').innerText = outVal;
   }
 
-  function updateAudioApps(apps) {
+  function updateAudioApps(data) {
+    return;
     // [...document.getElementsByClassName('strip')].forEach(el => el.remove());
     apps.forEach(app => {
       let el = document.getElementById(`pid-${app.pid}`);
@@ -463,7 +464,8 @@
       });
   }
 
-  function updateAudioDevices(devices) {
+  function updateAudioDevices(data) {
+    return;
     const container = document.getElementById('device-list');
     container.innerHTML = '';
 
@@ -479,19 +481,22 @@
   }
 
   function updateAudioAudeze(data) {
-    if (data.battery === 0xFF) {
-      document.getElementById('audeze-battery').innerHTML = '<i class="fa-solid fa-times"></i>';
-      return;
-    }
-    document.getElementById('audeze-battery').innerText = Math.round(data.battery) + '%';
-    if (data.battery <= 25) {
-      document.getElementById('audeze-battery').classList.add('critical');
+    if (data.ok) {
+      if (data.battery <= 25) {
+        document.getElementById('audeze-battery').classList.add('critical');
+      } else {
+        document.getElementById('audeze-battery').classList.remove('critical');
+      }
+      document.getElementById('audeze-battery').innerText = Math.round(data.battery) + '%';
     } else {
-      document.getElementById('audeze-battery').classList.remove('critical');
+      if (data.battery === 0xFF) {
+        document.getElementById('audeze-battery').innerHTML = '<i class="fa-solid fa-times" style="color: #f00;"></i>';
+      }
     }
   }
 
   function updateMedia(data) {
+    return;
     if (!data || data.source === 0) { return; }
 
     const hud = document.getElementById('media-hud'), fill = document.getElementById('media-progress-fill');
@@ -519,7 +524,8 @@
     fill.style.width = Math.min(100, (data.currentTime / data.duration) * 100) + '%';
   }
 
-  function updateLauncherActions(actions) {
+  function updateLauncherActions(data) {
+    return;
     const launcherZone1 = document.getElementById('launcher-zone-1');
     const launcherZone2 = document.getElementById('launcher-zone-2');
     const launcherZone3 = document.getElementById('launcher-zone-3');

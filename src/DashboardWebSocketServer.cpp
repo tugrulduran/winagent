@@ -8,21 +8,15 @@
 #include <QMetaObject>
 #include <QTimer>
 
+#include "Dashboard.h"
+#include "DashboardData.h"
 #include "Logger.h"
-#include "modules/AudioMonitor.h"
-#include "modules/LauncherMonitor.h"
-#include "modules/MediaMonitor.h"
+#include "PluginManager.h"
 
 DashboardWebSocketServer::DashboardWebSocketServer(
-    LauncherMonitor *launcher,
-    AudioMonitor *audio,
-    MediaMonitor *media,
-    AudioDeviceMonitor *audioDevice,
+    PluginManager *plugins,
     QObject *parent) : QWebSocketServer(QStringLiteral("Dashboard WS Server"), QWebSocketServer::SecureMode, parent),
-                       m_launcher(launcher),
-                       m_audio(audio),
-                       m_audioDevice(audioDevice),
-                       m_media(media),
+                       m_plugins(plugins),
                        m_broadcastTimer(new QTimer(this)) {
     m_broadcastTimer->setTimerType(Qt::CoarseTimer);
     m_broadcastTimer->setInterval(1000);
@@ -41,8 +35,8 @@ void DashboardWebSocketServer::start() {
 
     if (isListening()) return;
 
-    QFile certFile("cert.pem");
-    QFile keyFile("key.pem");
+    QFile certFile("certs/cert.pem");
+    QFile keyFile("certs/key.pem");
 
     if (!certFile.open(QIODevice::ReadOnly) ||
         !keyFile.open(QIODevice::ReadOnly)) {
@@ -155,12 +149,16 @@ void DashboardWebSocketServer::handleEvent(const QString &cmd, const QJsonObject
     else if (cmd == "setVolume") {
         handleSetVolume(payload);
     }
+    else if (cmd == "moduleRequest") {
+        handleModuleRequest(payload);
+    }
     else {
         Logger::error("[WS] Unknown WS event: " + cmd);
     }
 }
 
 void DashboardWebSocketServer::handleSetAudioDevice(const QJsonObject &payload) {
+    /*
     const uint32_t deviceIndex = payload["device"].toInt();
 
     m_audioDevice->setDefaultByIndex(deviceIndex);
@@ -171,17 +169,21 @@ void DashboardWebSocketServer::handleSetAudioDevice(const QJsonObject &payload) 
         m_audioDevice->update();
         broadcastJson();
     });
+*/
 }
 
 void DashboardWebSocketServer::handleRunAction(const QJsonObject &payload) {
+    /*
     if (!m_launcher) { return; }
     const uint32_t actionId = payload["action"].toInt();
     m_launcher->executeAction(actionId);
 
     Logger::info("[LAUNCHER] Launcher action: " + QString::number(actionId));
+*/
 }
 
 void DashboardWebSocketServer::handleMediaCtrl(const QJsonObject &payload) {
+    /*
     const uint16_t subCommand = payload["cmd"].toInteger();
     const uint32_t value = payload["value"].toInt();
 
@@ -213,9 +215,11 @@ void DashboardWebSocketServer::handleMediaCtrl(const QJsonObject &payload) {
         m_media->update();
         broadcastJson();
     });
+*/
 }
 
 void DashboardWebSocketServer::handleSetVolume(const QJsonObject &payload) {
+    /*
     const uint32_t pid = payload["pid"].toInteger();
     const double volume = payload["volume"].toDouble();
 
@@ -227,6 +231,7 @@ void DashboardWebSocketServer::handleSetVolume(const QJsonObject &payload) {
         m_audio->update();
         broadcastJson();
     });
+*/
 }
 
 void DashboardWebSocketServer::broadcastTick() {
@@ -243,90 +248,17 @@ void DashboardWebSocketServer::broadcastJson() {
         return;
 
     //@formatter:off
-    QJsonObject root;       // root
-    QJsonObject payload;    // payload root
-    QJsonObject system;     // ├─ system
-    QJsonObject cpu;        // │  ├─ cpu        🧠
-    QJsonObject ram;        // │  ├─ ram        💾
-    QJsonObject processes;  // │  └─ processes  ⚙️
-    QJsonObject network;    // ├─ network       🌐
-    QJsonObject audio;      // ├─ audio         🔊
-    QJsonObject apps;       // │  ├─ apps       📦
-    QJsonObject devices;    // │  ├─ devices    🎛️
-    QJsonObject audeze;     // │  └─ audeze     🎧
-    QJsonObject media;      // ├─ media         🎵
-    QJsonObject launcher;   // └─ launcher      🚀
+    QJsonObject root;       // Json root
+    QJsonObject payload;    // Payload root
+    QJsonObject timestamp;  // ├─ Current time  ⏱️
+    QJsonObject modules;    // └─ modules       🧩 (data from plugins)
     //@formatter:on
 
-    auto &data = static_cast<DashboardData &>(Dashboard::instance().data);
-
-    cpu["load"] = static_cast<double>(data.cpu.getLoad());
-    ram["total"] = static_cast<qint64>(data.memory.getTotal());
-    ram["used"] = static_cast<qint64>(data.memory.getUsed());
-    network["rx"] = static_cast<qint64>(data.network.getRxBytes());
-    network["tx"] = static_cast<qint64>(data.network.getTxBytes());
-    QJsonObject activeProcess;
-    const SysProcess proc = data.process.getActiveProcess();
-    activeProcess["pid"] = static_cast<qint64>(proc.id);
-    activeProcess["name"] = QString::fromStdString(proc.name);
-    processes["active"] = activeProcess;
-
-    system["cpu"] = cpu;
-    system["ram"] = ram;
-    system["network"] = network;
-    system["processes"] = processes;
-
-    auto audioApps = data.audio.apps.snapshot();
-    QJsonArray appsArray;
-    for (const auto &app: audioApps) {
-        QJsonObject obj;
-        obj["pid"] = static_cast<qint64>(app.pid);
-        obj["volume"] = app.volume;
-        obj["muted"] = app.muted;
-        obj["name"] = QString::fromWCharArray(app.name.c_str());
-        appsArray.append(obj);
+    payload["timestamp"] = QDateTime::currentSecsSinceEpoch();
+    if (m_plugins) {
+        modules = m_plugins->readAll();
+        payload["modules"] = modules;
     }
-
-    auto audioDevices = data.audio.devices.snapshot();
-    QJsonArray devicesArray;
-    for (const auto &device: audioDevices) {
-        QJsonObject obj;
-        obj["index"] = static_cast<qint64>(device.index);
-        obj["isDefault"] = device.isDefault;
-        obj["name"] = QString::fromWCharArray(device.name.c_str());
-        obj["deviceId"] = QString::fromWCharArray(device.deviceId.c_str());
-        devicesArray.append(obj);
-    }
-
-    const uint8_t mediaSource = data.media.getSource();
-    media["source"] = static_cast<qint64>(mediaSource);
-    if (mediaSource != MEDIA_SOURCE_NO_MEDIA) {
-        const std::wstring title = data.media.getTitle();
-        media["title"] = QString::fromWCharArray(title.c_str());
-        media["duration"] = static_cast<qint64>(data.media.getDuration());
-        media["currentTime"] = static_cast<qint64>(data.media.getCurrentTime());
-        media["isPlaying"] = data.media.getIsPlaying();
-    }
-
-    audeze["battery"] = static_cast<qint64>(data.audeze.getBattery());
-
-    audio["apps"] = appsArray;
-    audio["devices"] = devicesArray;
-    audio["audeze"] = audeze;
-
-    QJsonArray launchers;
-    for (const auto &a: data.launcher.getActions()) {
-        QJsonObject obj;
-        obj["id"] = static_cast<qint64>(a.id);
-        obj["name"] = QString::fromWCharArray(a.name.c_str());
-        launchers.append(obj);
-    }
-    launcher["actions"] = launchers;
-
-    payload["system"] = system;
-    payload["audio"] = audio;
-    payload["media"] = media;
-    payload["launcher"] = launcher;
 
     root["event"] = "update";
     root["payload"] = payload;
@@ -340,5 +272,19 @@ void DashboardWebSocketServer::broadcastJson() {
         if (socket->state() == QAbstractSocket::ConnectedState) {
             socket->sendTextMessage(json);
         }
+    }
+}
+
+void DashboardWebSocketServer::handleModuleRequest(const QJsonObject &data) {
+    if (!m_plugins) return;
+    const QString module = data.value("module").toString();
+    const QJsonObject payload = data.value("payload").toObject();
+    if (module.isEmpty()) return;
+
+    const QJsonObject res = m_plugins->request(module, payload);
+    // Optional: broadcast immediately after a module command.
+    if (!res.isEmpty()) {
+        Logger::info("[PLUGIN] " + module + " request ok");
+        QTimer::singleShot(50, this, [&] { broadcastJson(); });
     }
 }
