@@ -1,15 +1,14 @@
 # plugins/memory/CMakeLists.txt
-set(PLUGIN_NAME "dummy")
-set(tgt WinAgentPlugin_dummy)
+set(PLUGIN_NAME "basiccpu")
+set(tgt WinAgentPlugin_basiccpu)
 
 add_library(${tgt} SHARED ${PROJECT_SOURCE_DIR}/src/BasePlugin.cpp Plugin.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/DummySampler.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/RingLog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/CpuSampler.cpp
 )
 
 target_compile_definitions(${tgt} PRIVATE WA_BUILDING_PLUGIN)
-target_include_directories(${tgt} PRIVATE ${PROJECT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${tgt} PRIVATE Qt6::Core)
+target_include_directories(${tgt} PRIVATE ${PROJECT_SOURCE_DIR}/include src)
+target_link_libraries(${tgt} PRIVATE Qt6::Core pdh)
 
 if (TARGET WinAgent)
     set_target_properties(${tgt} PROPERTIES
