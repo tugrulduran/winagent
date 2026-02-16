@@ -159,7 +159,23 @@ void DashboardWebSocketServer::broadcastJson() {
     QJsonDocument doc(root);
     const QString json = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 
-    const auto clients = m_clients;   // snapshot
+    const auto clients = m_clients;
+    for (QWebSocket *socket: clients) {
+        if (!socket) continue;
+        if (socket->state() == QAbstractSocket::ConnectedState) {
+            socket->sendTextMessage(json);
+        }
+    }
+}
+
+void DashboardWebSocketServer::sendResponse(const QJsonObject &data) {
+    if (QThread::currentThread() != thread()) { return; }
+    if (m_clients.isEmpty()) { return; }
+
+    QJsonDocument doc(data);
+    const QString json = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+
+    const auto clients = m_clients; // snapshot
     for (QWebSocket *socket: clients) {
         if (!socket) continue;
         if (socket->state() == QAbstractSocket::ConnectedState) {
@@ -178,6 +194,7 @@ void DashboardWebSocketServer::handleModuleRequest(const QJsonObject &data) {
     // Optional: broadcast immediately after a module command.
     if (!res.isEmpty()) {
         Logger::info("[PLUGIN] " + module + " request ok");
+        sendResponse(res);
         QTimer::singleShot(50, this, [&] { broadcastJson(); });
     }
 }

@@ -40,7 +40,7 @@ protected:
                 {"type", app.type},
                 {"name", QString::fromStdWString(app.name)},
                 {"volume", app.volume},
-                {"muted", 3}
+                {"muted", app.muted}
             });
         }
 
@@ -65,6 +65,14 @@ protected:
         }
         if (cmd == "setMasterVolume") {
             mixer.setMasterVolume(req.value("volume").toDouble());
+            return QJsonObject{{"ok", true}};
+        }
+        if (cmd == "toggleAppMute") {
+            mixer.toggleAppMuteByPID(req.value("pid").toInt());
+            return QJsonObject{{"ok", true}};
+        }
+        if (cmd == "toggleMasterMute") {
+            mixer.toggleMasterMute();
             return QJsonObject{{"ok", true}};
         }
 

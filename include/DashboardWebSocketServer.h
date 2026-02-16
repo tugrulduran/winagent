@@ -90,4 +90,6 @@ private:
     PluginManager *m_plugins;
 
     void handleModuleRequest(const QJsonObject &data);
+
+    void sendResponse(const QJsonObject &data);
 };

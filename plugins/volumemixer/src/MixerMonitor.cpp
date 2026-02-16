@@ -268,4 +268,96 @@ namespace volumemixer {
         if (pDevice) pDevice->Release();
         if (pEnumerator) pEnumerator->Release();
     }
+
+    void MixerMonitor::toggleAppMuteByPID(uint32_t targetPid) {
+        ScopedCOM com;
+
+        // Find the audio session whose process id matches targetPid, then set its volume.
+        IMMDeviceEnumerator *pEnumerator = NULL;
+        IMMDevice *pDevice = NULL;
+        IAudioSessionManager2 *pSessionManager = NULL;
+        IAudioSessionEnumerator *pSessionEnumerator = NULL;
+
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
+        if (FAILED(hr) || !pEnumerator) return;
+
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+        if (FAILED(hr) || !pDevice) {
+            pEnumerator->Release();
+            return;
+        }
+
+        pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void **) &pSessionManager);
+        pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
+
+        int count = 0;
+        pSessionEnumerator->GetCount(&count);
+
+        for (int i = 0; i < count; i++) {
+            IAudioSessionControl *pSessionControl = NULL;
+            IAudioSessionControl2 *pSessionControl2 = NULL;
+
+            pSessionEnumerator->GetSession(i, &pSessionControl);
+            pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void **) &pSessionControl2);
+
+            DWORD currentPid = 0;
+            pSessionControl2->GetProcessId(&currentPid);
+
+            // Match by numeric PID.
+            if (currentPid == targetPid) {
+                ISimpleAudioVolume *pVolumeControl = NULL;
+                pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void **) &pVolumeControl);
+                if (pVolumeControl) {
+                    BOOL m;
+                    pVolumeControl->GetMute(&m);
+                    pVolumeControl->SetMute(!m, NULL);
+                    pVolumeControl->Release();
+                }
+
+                // Target found; stop scanning sessions.
+                pSessionControl2->Release();
+                pSessionControl->Release();
+                break;
+            }
+
+            pSessionControl2->Release();
+            pSessionControl->Release();
+        }
+
+        if (pSessionEnumerator) pSessionEnumerator->Release();
+        if (pSessionManager) pSessionManager->Release();
+
+        if (pDevice) pDevice->Release();
+        if (pEnumerator) pEnumerator->Release();
+    }
+
+    void MixerMonitor::toggleMasterMute() {
+        ScopedCOM com;
+
+        // Find the audio session whose process id matches targetPid, then set its volume.
+        IMMDeviceEnumerator *pEnumerator = NULL;
+        IMMDevice *pDevice = NULL;
+
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
+        if (FAILED(hr) || !pEnumerator) return;
+
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+        if (FAILED(hr) || !pDevice) {
+            pEnumerator->Release();
+            return;
+        }
+
+        IAudioEndpointVolume *pEndpointVolume = NULL;
+        pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void **) &pEndpointVolume);
+        if (pEndpointVolume) {
+            BOOL m;
+            pEndpointVolume->GetMute(&m);
+            pEndpointVolume->SetMute(!m, NULL);
+        }
+
+        if (pDevice) pDevice->Release();
+        if (pEnumerator) pEnumerator->Release();
+    }
 }

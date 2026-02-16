@@ -28,6 +28,10 @@ namespace volumemixer {
 
         void setMasterVolume(float newVolume);
 
+        void toggleAppMuteByPID(uint32_t targetPid);
+
+        void toggleMasterMute();
+
     private:
         bool isIgnored(const std::wstring &name);
 
