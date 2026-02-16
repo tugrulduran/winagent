@@ -339,7 +339,7 @@
     setTimeout(() => { audioLocked = -1; }, 2000);
 
     callRequest('volumemixer', {
-      cmd: 'setVolume',
+      cmd: el.dataset.type === '0' ? 'setMasterVolume' : 'setAppVolume',
       pid: activePid,
       volume: val / 100
     });
@@ -457,7 +457,7 @@
     if (!data || !data.ok) { return; }
     // [...document.getElementsByClassName('strip')].forEach(el => el.remove());
     data.apps.forEach(app => {
-      const pid = parseInt(app.pid);
+      const pid = app.type === 0 ? 0xFFFFFFFF : parseInt(app.pid);
       let el = document.getElementById(`pid-${pid}`);
       const vol = Math.round(app.volume * 100);
       if (audioLocked === pid) { return; }
@@ -478,10 +478,6 @@
           activePid = pid;
           triggerUpdate(e);
         }, { passive: false });
-        el.addEventListener('click', (e) => {
-          activePid = pid;
-          triggerUpdate(e);
-        }, { passive: false });
         document.getElementById('mixer').appendChild(el);
       } else if (activePid !== pid) {
         el.querySelector('.fill').style.height = vol + '%';
@@ -495,6 +491,7 @@
       .filter(pid => !pids.includes(pid))
       .forEach(pid => {
         const el = document.getElementById(`pid-${pid}`);
+        if (el && el.dataset.type === '0') { return; }
         if (el) { el.remove(); }
       });
   }
@@ -582,6 +579,7 @@
   function callRequest(module, payload) {
     ws.send(JSON.stringify({ module, payload }));
   }
+
   function callCtrl(cmd, payload) {
     ws.send(JSON.stringify({ cmd, payload }));
   }

@@ -20,15 +20,17 @@ struct MixerApp {
 namespace volumemixer {
     class MixerMonitor {
     public:
-        ~MixerMonitor();
-
         std::vector<MixerApp> update();
-        void setVolumeByPID(uint32_t targetPid, float newVolume);
 
         void init(QJsonObject config);
 
+        void setVolumeByPID(uint32_t targetPid, float newVolume);
+
+        void setMasterVolume(float newVolume);
+
     private:
         bool isIgnored(const std::wstring &name);
+
         std::wstring getAppName(const std::wstring &filepath);
 
         std::unordered_set<std::wstring> ignoredApps = {};

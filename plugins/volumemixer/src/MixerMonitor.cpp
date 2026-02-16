@@ -13,14 +13,17 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
 
+class ScopedCOM {
+public:
+    ScopedCOM() { initialized = SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)); }
+    ~ScopedCOM() { if (initialized) CoUninitialize(); }
+
+private:
+    bool initialized{false};
+};
+
 namespace volumemixer {
-    MixerMonitor::~MixerMonitor() {
-        CoUninitialize();
-    }
-
     void MixerMonitor::init(QJsonObject config) {
-        CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
         const QJsonValue v = config.value("ignoredApps");
         ignoredApps.clear();
         if (!v.isArray()) {
@@ -72,6 +75,7 @@ namespace volumemixer {
     }
 
     std::vector<MixerApp> MixerMonitor::update() {
+        ScopedCOM com;
         std::vector<MixerApp> apps{};
 
         IMMDeviceEnumerator *pEnumerator = NULL;
@@ -169,6 +173,8 @@ namespace volumemixer {
     }
 
     void MixerMonitor::setVolumeByPID(uint32_t targetPid, float newVolume) {
+        ScopedCOM com;
+
         // Clamp volume into the expected range.
         if (newVolume < 0.0f) newVolume = 0.0f;
         if (newVolume > 1.0f) newVolume = 1.0f;
@@ -179,8 +185,16 @@ namespace volumemixer {
         IAudioSessionManager2 *pSessionManager = NULL;
         IAudioSessionEnumerator *pSessionEnumerator = NULL;
 
-        CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
-        pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
+        if (FAILED(hr) || !pEnumerator) return;
+
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+        if (FAILED(hr) || !pDevice) {
+            pEnumerator->Release();
+            return;
+        }
+
         pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (void **) &pSessionManager);
         pSessionManager->GetSessionEnumerator(&pSessionEnumerator);
 
@@ -218,6 +232,39 @@ namespace volumemixer {
 
         if (pSessionEnumerator) pSessionEnumerator->Release();
         if (pSessionManager) pSessionManager->Release();
+
+        if (pDevice) pDevice->Release();
+        if (pEnumerator) pEnumerator->Release();
+    }
+
+    void MixerMonitor::setMasterVolume(float newVolume) {
+        ScopedCOM com;
+
+        // Clamp volume into the expected range.
+        if (newVolume < 0.0f) newVolume = 0.0f;
+        if (newVolume > 1.0f) newVolume = 1.0f;
+
+        // Find the audio session whose process id matches targetPid, then set its volume.
+        IMMDeviceEnumerator *pEnumerator = NULL;
+        IMMDevice *pDevice = NULL;
+
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void **) &pEnumerator);
+        if (FAILED(hr) || !pEnumerator) return;
+
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice);
+        if (FAILED(hr) || !pDevice) {
+            pEnumerator->Release();
+            return;
+        }
+
+        IAudioEndpointVolume *pEndpointVolume = NULL;
+        pDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void **) &pEndpointVolume);
+        if (pEndpointVolume) {
+            pEndpointVolume->SetMasterVolumeLevelScalar(newVolume, NULL);
+            pEndpointVolume->Release();
+        }
+
         if (pDevice) pDevice->Release();
         if (pEnumerator) pEnumerator->Release();
     }

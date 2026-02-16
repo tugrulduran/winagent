@@ -53,20 +53,19 @@ protected:
 
 
     QJsonObject onRequest(const QJsonObject &req) override {
-        // Expected: { "cmd": "...", ... }
         const QString cmd = req.value("cmd").toString();
 
         if (cmd.isEmpty()) {
             return QJsonObject{{"ok", false}, {"error", "missing_cmd"}};
         }
 
-        // ---- Generic commands ----
-        if (cmd == "setVolume") {
+        if (cmd == "setAppVolume") {
             mixer.setVolumeByPID(req.value("pid").toInt(), req.value("volume").toDouble());
-            return QJsonObject{
-                {"ok", true},
-                {"ack", true},
-            };
+            return QJsonObject{{"ok", true}};
+        }
+        if (cmd == "setMasterVolume") {
+            mixer.setMasterVolume(req.value("volume").toDouble());
+            return QJsonObject{{"ok", true}};
         }
 
         return QJsonObject{{"ok", false}, {"error", "unknown_cmd"}, {"cmd", cmd}};
