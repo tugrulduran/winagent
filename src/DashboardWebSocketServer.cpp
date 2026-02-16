@@ -195,6 +195,6 @@ void DashboardWebSocketServer::handleModuleRequest(const QJsonObject &data) {
     if (!res.isEmpty()) {
         Logger::info("[PLUGIN] " + module + " request ok");
         sendResponse(res);
-        QTimer::singleShot(50, this, [&] { broadcastJson(); });
+        QTimer::singleShot(100, this, [&] { broadcastJson(); });
     }
 }

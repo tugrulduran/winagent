@@ -1,141 +1,141 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WinAgent v1.4 | Pro Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/default.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WinAgent v1.4 | Pro Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/default.css">
 </head>
 <body>
 <div class="system-vitals">
-    <div class="vitals-left">
-        <div class="vitals-left-system">
-            <div class="vital-row">
-                <div class="vital-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="4" y="4" width="16" height="16" rx="2"/>
-                        <rect x="9" y="9" width="6" height="6"/>
-                        <path d="M15 2v2"/>
-                        <path d="M15 20v2"/>
-                        <path d="M2 15h2"/>
-                        <path d="M2 9h2"/>
-                        <path d="M20 15h2"/>
-                        <path d="M20 9h2"/>
-                        <path d="M9 2v2"/>
-                        <path d="M9 20v2"/>
-                    </svg>
-                </div>
-                <div class="vital-bar-bg">
-                    <div id="cpu-fill" class="vital-bar-fill"></div>
-                </div>
-            </div>
-            <div class="vital-row">
-                <div class="vital-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 19v-3"/>
-                        <path d="M10 19v-3"/>
-                        <path d="M14 19v-3"/>
-                        <path d="M18 19v-3"/>
-                        <path d="M8 11V9"/>
-                        <path d="M16 11V9"/>
-                        <path d="M12 11V9"/>
-                        <path d="M2 15h20"/>
-                        <path d="M2 7h20"/>
-                        <path d="M2 5v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
-                    </svg>
-                </div>
-                <div class="vital-bar-bg">
-                    <div id="ram-fill" class="vital-bar-fill"></div>
-                </div>
-            </div>
-            <div class="vital-text-container">
-                <div id="cpu-text" class="vital-value">0%</div>
-                <div id="audeze-battery" class="vital-value">0%</div>
-                <div id="ram-text" class="vital-value">0.0 GB</div>
-            </div>
+  <div class="vitals-left">
+    <div class="vitals-left-system">
+      <div class="vital-row">
+        <div class="vital-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <rect x="9" y="9" width="6" height="6" />
+            <path d="M15 2v2" />
+            <path d="M15 20v2" />
+            <path d="M2 15h2" />
+            <path d="M2 9h2" />
+            <path d="M20 15h2" />
+            <path d="M20 9h2" />
+            <path d="M9 2v2" />
+            <path d="M9 20v2" />
+          </svg>
         </div>
-        <div class="vitals-left-network">
-            <div class="net-row"><span id="net-in" class="net-value">0.0 MB/s</span><span style="color:var(--net)">▼</span>
-            </div>
-            <div class="net-row"><span id="net-out" class="net-value">0.0 MB/s</span><span style="color:#00a2ff">▲</span>
-            </div>
-            <div class="net-row"><span id="net-type" class="net-value"></span></div>
+        <div class="vital-bar-bg">
+          <div id="cpu-fill" class="vital-bar-fill"></div>
         </div>
+      </div>
+      <div class="vital-row">
+        <div class="vital-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 19v-3" />
+            <path d="M10 19v-3" />
+            <path d="M14 19v-3" />
+            <path d="M18 19v-3" />
+            <path d="M8 11V9" />
+            <path d="M16 11V9" />
+            <path d="M12 11V9" />
+            <path d="M2 15h20" />
+            <path d="M2 7h20" />
+            <path d="M2 5v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+          </svg>
+        </div>
+        <div class="vital-bar-bg">
+          <div id="ram-fill" class="vital-bar-fill"></div>
+        </div>
+      </div>
+      <div class="vital-text-container">
+        <div id="cpu-text" class="vital-value">0%</div>
+        <div id="audeze-battery" class="vital-value">0%</div>
+        <div id="ram-text" class="vital-value">0.0 GB</div>
+      </div>
     </div>
-
-    <div class="vitals-middle">
-        <div class="clock-container">
-            <div id="main-clock">00:00:00</div>
-            <div id="main-date">01/01/2024 MONDAY</div>
-        </div>
-        <div class="stopwatch-container">
-            <div id="sw-display" onclick="toggleStopwatch()">00:00:00.00</div>
-            <div class="sw-controls">
-                <button class="sw-btn" id="sw-reset" onclick="resetStopwatch()">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" fill="currentColor"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
+    <div class="vitals-left-network">
+      <div class="net-row"><span id="net-in" class="net-value">0.0 MB/s</span><span style="color:var(--net)">▼</span>
+      </div>
+      <div class="net-row"><span id="net-out" class="net-value">0.0 MB/s</span><span style="color:#00a2ff">▲</span>
+      </div>
+      <div class="net-row"><span id="net-type" class="net-value"></span></div>
     </div>
+  </div>
 
-    <div id="launcher-zone-1"></div>
+  <div class="vitals-middle">
+    <div class="clock-container">
+      <div id="main-clock">00:00:00</div>
+      <div id="main-date">01/01/2024 MONDAY</div>
+    </div>
+    <div class="stopwatch-container">
+      <div id="sw-display" onclick="toggleStopwatch()">00:00:00.00</div>
+      <div class="sw-controls">
+        <button class="sw-btn" id="sw-reset" onclick="resetStopwatch()">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="launcher-zone-1"></div>
 </div>
 
 <div id="mixer" class="mixer-container"></div>
 <div id="device-list"></div>
 
 <div id="media-hud" class="media-hud">
-    <div class="media-controls-row">
-        <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.Previous })*/">«</div>
-        <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-30)">-30</div>
-        <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-10)">
-            <svg viewBox="0 0 24 24" width="35">
-                <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" fill="currentColor"/>
-            </svg>
-        </div>
-        <div class="media-main-btn" onclick="callCtrl('mediaCtrl', { cmd: MediaCommands.PlayPause })">
-            <span id="media-source">SOURCE</span>
-            <span id="media-title">NOTHING PLAYING</span>
-            <span id="play-status-text">IDLE</span>
-        </div>
-        <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(10)">
-            <svg viewBox="0 0 24 24" width="35">
-                <path d="M11.5 8c2.65 0 5.05 1 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z" fill="currentColor"/>
-            </svg>
-        </div>
-        <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(30)">+30</div>
-        <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.SeekForward })*/">»</div>
+  <div class="media-controls-row">
+    <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.Previous })*/">«</div>
+    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-30)">-30</div>
+    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-10)">
+      <svg viewBox="0 0 24 24" width="35">
+        <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" fill="currentColor" />
+      </svg>
     </div>
-    <div class="media-progress-bg">
-        <div id="media-progress-fill"></div>
+    <div class="media-main-btn" onclick="callRequest('media', { cmd: 'playpause' })">
+      <span id="media-source">SOURCE</span>
+      <span id="media-title">NOTHING PLAYING</span>
+      <span id="play-status-text">IDLE</span>
     </div>
-    <div class="media-time"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
+    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(10)">
+      <svg viewBox="0 0 24 24" width="35">
+        <path d="M11.5 8c2.65 0 5.05 1 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z" fill="currentColor" />
+      </svg>
+    </div>
+    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(30)">+30</div>
+    <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.SeekForward })*/">»</div>
+  </div>
+  <div class="media-progress-bg">
+    <div id="media-progress-fill"></div>
+  </div>
+  <div class="media-time"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
 </div>
 
 <div class="status-panel">
-    <div id="status-wakelock" class="badge">WAKE LOCK: OFF</div>
-    <div id="status-live" class="badge active">AGENT: LIVE</div>
+  <div id="status-wakelock" class="badge">WAKE LOCK: OFF</div>
+  <div id="status-live" class="badge active">AGENT: LIVE</div>
 </div>
 
 <div class="controls">
-    <div class="btn-action" onclick="window.location.reload()">
-        <svg viewBox="0 0 24 24">
-            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-        </svg>
-    </div>
-    <div id="btn-lock" class="btn-action" onclick="toggleEnhancedWakeLock()">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-        </svg>
-    </div>
-    <div id="btn-fs" class="btn-action" onclick="toggleFS()">
-        <svg viewBox="0 0 24 24">
-            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-        </svg>
-    </div>
+  <div class="btn-action" onclick="window.location.reload()">
+    <svg viewBox="0 0 24 24">
+      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+    </svg>
+  </div>
+  <div id="btn-lock" class="btn-action" onclick="toggleEnhancedWakeLock()">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+    </svg>
+  </div>
+  <div id="btn-fs" class="btn-action" onclick="toggleFS()">
+    <svg viewBox="0 0 24 24">
+      <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+    </svg>
+  </div>
 </div>
 
 <script>
@@ -182,7 +182,8 @@
                 display.innerText = `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms)}`;
             }, 10);
             display.classList.add('active-color');
-        } else {
+        }
+        else {
             swIsRunning = false;
             clearInterval(swInterval);
         }
@@ -213,7 +214,8 @@
             } catch (err) {
                 console.error(err);
             }
-        } else {
+        }
+        else {
             isLocked = false;
             btn.classList.remove('active');
             badge.classList.remove('active');
@@ -228,21 +230,21 @@
     function toggleFS() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
-        } else {
+        }
+        else {
             document.exitFullscreen();
         }
     }
 
     function updateClock() {
         const now = new Date();
-        document.getElementById('main-clock').innerText = now.toLocaleTimeString('tr-TR', {hour12: false});
+        document.getElementById('main-clock').innerText = now.toLocaleTimeString('tr-TR', { hour12: false });
         const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
         document.getElementById('main-date').innerText = `${now.toLocaleDateString('tr-TR')} ${days[now.getDay()]}`;
     }
 
     function jumpMediaToTime(time) {
-        console.log('Calling jump to time:', time);
-        callCtrl('mediaCtrl', {cmd: MediaCommands.Jump, value: time});
+        callRequest('media', { cmd: 'jump', time });
         window.currentTime = time;
     }
 
@@ -250,9 +252,11 @@
         const newTime = window.currentTime + time;
         if (newTime < 0) {
             jumpMediaToTime(0);
-        } else if (newTime > window.totalTime) {
+        }
+        else if (newTime > window.totalTime) {
             jumpMediaToTime(window.totalTime);
-        } else {
+        }
+        else {
             jumpMediaToTime(newTime);
         }
     }
@@ -262,45 +266,45 @@
     function getIconById(id) {
         switch (id) {
             case 1:
-                return {type: 'solid', icon: 'calculator'};
+                return { type: 'solid', icon: 'calculator' };
             case 2:
-                return {type: 'regular', icon: 'clipboard'};
+                return { type: 'regular', icon: 'clipboard' };
             case 3:
-                return {type: 'brands', icon: 'chrome'};
+                return { type: 'brands', icon: 'chrome' };
             case 4:
-                return {type: 'brands', icon: 'steam'};
+                return { type: 'brands', icon: 'steam' };
             case 5:
-                return {type: 'solid', icon: 'terminal'};
+                return { type: 'solid', icon: 'terminal' };
             default:
-                return {type: 'solid', icon: 'question'};
+                return { type: 'solid', icon: 'question' };
         }
     }
 
     function getIconByProcessName(name) {
         switch (name) {
             case 'chrome.exe':
-                return {type: 'brands', icon: 'chrome'};
+                return { type: 'brands', icon: 'chrome' };
             case 'steam.exe':
-                return {type: 'brands', icon: 'steam'};
+                return { type: 'brands', icon: 'steam' };
             default:
-                return {type: 'solid', icon: 'question'};
+                return { type: 'solid', icon: 'question' };
         }
     }
 
     function getIconByAppTitle(title) {
         switch (title) {
             case 'MASTER VOLUME':
-                return {type: 'solid', icon: 'volume-high'};
+                return { type: 'solid', icon: 'volume-high' };
             case 'Google Chrome':
-                return {type: 'brands', icon: 'chrome'};
+                return { type: 'brands', icon: 'chrome' };
             case 'Steam':
-                return {type: 'brands', icon: 'steam'};
+                return { type: 'brands', icon: 'steam' };
             case 'Battle.net':
-                return {type: 'brands', icon: 'battle-net'};
+                return { type: 'brands', icon: 'battle-net' };
             case 'Opera Internet Browser':
-                return {type: 'brands', icon: 'opera'};
+                return { type: 'brands', icon: 'opera' };
             default:
-                return {type: 'solid', icon: 'question'};
+                return { type: 'solid', icon: 'question' };
         }
     }
 
@@ -353,7 +357,7 @@
         if (activePid) {
             triggerUpdate(e);
         }
-    }, {passive: false});
+    }, { passive: false });
     window.addEventListener('touchend', () => {
         activePid = null;
     });
@@ -438,7 +442,8 @@
         document.getElementById('ram-text').innerText = percent + '%';
         if (percent > 80) {
             document.getElementById('ram-text').classList.add('critical');
-        } else {
+        }
+        else {
             document.getElementById('ram-text').classList.remove('critical');
         }
     }
@@ -470,12 +475,14 @@
         let netType = 'unknown';
         if (['wifi', 'wi-fi', 'wlan', 'wireless'].some(k => bestInterface.name.toLowerCase().includes(k))) {
             netType = 'Wi-Fi';
-        } else if (['ethernet', 'eth', 'wired'].some(k => bestInterface.name.toLowerCase().includes(k))) {
+        }
+        else if (['ethernet', 'eth', 'wired'].some(k => bestInterface.name.toLowerCase().includes(k))) {
             netType = 'Ethernet';
         }
         if (netType === 'unknown') {
             document.getElementById('net-type').innerText = bestInterface.name;
-        } else if ((inKB + outKB) > 10) {
+        }
+        else if ((inKB + outKB) > 10) {
             document.getElementById('net-type').innerText = netType;
         }
     }
@@ -499,7 +506,8 @@
                 el.classList.add('strip');
                 if (app.muted) {
                     el.classList.add('muted');
-                } else {
+                }
+                else {
                     el.classList.remove('muted');
                 }
                 const icon = getIconByAppTitle(app.name);
@@ -515,16 +523,18 @@
                 el.addEventListener('touchstart', (e) => {
                     activePid = pid;
                     triggerUpdate(e);
-                }, {passive: false});
+                }, { passive: false });
                 document.getElementById('mixer').appendChild(el);
-            } else {
+            }
+            else {
                 if (activePid !== pid) {
                     el.querySelector('.fill').style.height = vol + '%';
                     el.querySelector('.vol-label').innerText = vol;
                 }
                 if (app.muted) {
                     el.classList.add('muted');
-                } else {
+                }
+                else {
                     el.classList.remove('muted');
                 }
             }
@@ -556,7 +566,7 @@
                 const btn = document.createElement('div');
                 btn.className = `device-btn ${dev.isDefault ? 'active' : ''}`;
                 btn.innerText = dev.name;
-                btn.onclick = () => callCtrl('setAudioDevice', {device: dev.index});
+                btn.onclick = () => callCtrl('setAudioDevice', { device: dev.index });
                 container.appendChild(btn);
             });
     }
@@ -565,11 +575,13 @@
         if (data.ok) {
             if (data.battery <= 25) {
                 document.getElementById('audeze-battery').classList.add('critical');
-            } else {
+            }
+            else {
                 document.getElementById('audeze-battery').classList.remove('critical');
             }
             document.getElementById('audeze-battery').innerText = Math.round(data.battery) + '%';
-        } else {
+        }
+        else {
             if (data.battery === 0xFF) {
                 document.getElementById('audeze-battery').innerHTML = '<i class="fa-solid fa-times" style="color: #f00;"></i>';
             }
@@ -577,8 +589,7 @@
     }
 
     function updateMedia(data) {
-        return;
-        if (!data || data.source === 0) {
+        if (!data || data.source < 1) {
             return;
         }
 
@@ -596,7 +607,8 @@
         hud.style.display = 'flex';
         if (data.isPlaying) {
             hud.classList.remove('paused');
-        } else {
+        }
+        else {
             hud.classList.add('paused');
         }
         document.getElementById('media-title').innerText = data.title;
@@ -623,7 +635,7 @@
         actions.forEach(action => {
             const btn = document.createElement('div');
             btn.className = `launcher-btn ${action.icon}`;
-            btn.onclick = () => callCtrl('runAction', {action: action.id});
+            btn.onclick = () => callCtrl('runAction', { action: action.id });
             const icon = getIconById(action.id);
             btn.innerHTML = `<i class="fa-${icon.type} fa-${icon.icon}"></i>`;
             launcherZones[action.zone || 1].appendChild(btn);
@@ -632,11 +644,12 @@
 </script>
 <script>
     function callRequest(module, payload) {
-        ws.send(JSON.stringify({module, payload}));
+        // console.log('CALL REQUEST:', module, payload);
+        ws.send(JSON.stringify({ module, payload }));
     }
 
     function callCtrl(cmd, payload) {
-        ws.send(JSON.stringify({cmd, payload}));
+        ws.send(JSON.stringify({ cmd, payload }));
     }
 </script>
 </body>
