@@ -60,6 +60,7 @@
       </div>
       <div class="net-row"><span id="net-out" class="net-value">0.0 MB/s</span><span style="color:#00a2ff">▲</span>
       </div>
+      <div class="net-row"><span id="net-type" class="net-value"></span></div>
     </div>
   </div>
 
@@ -370,9 +371,9 @@
       const payload = data.payload;
       if (event === 'update') {
         console.log('UPDATE EVENT:', payload);
-        if ('cpu' in payload.modules) { updateCPU(payload.modules.cpu); }
-        if ('memory' in payload.modules) { updateRAM(payload.modules.memory); }
-        if ('network' in payload.modules) { updateNet(payload.modules.network); }
+        if ('basiccpu' in payload.modules) { updateCPU(payload.modules.basiccpu); }
+        if ('basicmemory' in payload.modules) { updateRAM(payload.modules.basicmemory); }
+        if ('basicnetwork' in payload.modules) { updateNet(payload.modules.basicnetwork); }
         if ('audio' in payload.modules) { updateAudioApps(payload.modules.audio); }
         if ('audiodevice' in payload.modules) { updateAudioDevices(payload.modules.audiodevice); }
         if ('audeze' in payload.modules) { updateAudioAudeze(payload.modules.audeze); }
@@ -397,18 +398,28 @@
   connect();
 
   function updateCPU(data) {
+    if (!data || !data.ok) { return; }
     document.getElementById('cpu-fill').style.width = data.load + '%';
     document.getElementById('cpu-text').innerText = Math.round(data.load) + '%';
   }
 
   function updateRAM(data) {
-    document.getElementById('ram-fill').style.width = (100 * data.usedBytes / data.totalBytes) + '%';
-    document.getElementById('ram-text').innerText = Math.round(data.availBytes / 1024 / 1024 / 1024) + 'GB';
+    if (!data || !data.ok) { return; }
+    const used = data.total - data.available;
+    const percent = Math.round(used / data.total * 100);
+    document.getElementById('ram-fill').style.width = percent + '%';
+    document.getElementById('ram-text').innerText = Math.round(data.available) + 'GB';
+    if (percent > 80) {
+      document.getElementById('ram-text').classList.add('critical');
+    } else {
+      document.getElementById('ram-text').classList.remove('critical');
+    }
   }
 
   function updateNet(data) {
-    const inKB = data.rxBytesPerSec / 1024.0;
-    const outKB = data.txBytesPerSec / 1024.0;
+    if (!data || !data.ok) { return; }
+    const inKB = data.interfaces.map(iface => iface.rxSpeed).reduce((a, b) => a + b, 0);
+    const outKB = data.interfaces.map(iface => iface.txSpeed).reduce((a, b) => a + b, 0);
     let inVal = Math.round(inKB) + ' KB/s';
     let outVal = Math.round(outKB) + ' KB/s';
     if (inKB > 1000) {
@@ -422,6 +433,23 @@
 
     document.getElementById('net-in').innerText = inVal;
     document.getElementById('net-out').innerText = outVal;
+
+    const bestInterface = data.interfaces.reduce((best, x) => (x.rxSpeed + x.txSpeed > best.rxSpeed + best.txSpeed ? x : best));
+    if (!bestInterface) {
+      return;
+    }
+    let netType = 'unknown';
+    if (['wifi', 'wi-fi', 'wlan', 'wireless'].some(k => bestInterface.name.toLowerCase().includes(k))) {
+      netType = 'wi-fi';
+    } else if (['ethernet', 'eth', 'wired'].some(k => bestInterface.name.toLowerCase().includes(k))) {
+      netType = 'wired';
+    }
+    if (netType === 'unknown') {
+      document.getElementById('net-type').style.display = 'none';
+    } else if ((inKB + outKB) > 10) {
+      document.getElementById('net-type').style.display = 'inline-block';
+      document.getElementById('net-type').innerText = netType;
+    }
   }
 
   function updateAudioApps(data) {
