@@ -435,7 +435,7 @@
         const used = data.total - data.available;
         const percent = Math.round(used / data.total * 100);
         document.getElementById('ram-fill').style.width = percent + '%';
-        document.getElementById('ram-text').innerText = Math.round(data.available) + 'GB';
+        document.getElementById('ram-text').innerText = percent + '%';
         if (percent > 80) {
             document.getElementById('ram-text').classList.add('critical');
         } else {
@@ -469,14 +469,13 @@
         }
         let netType = 'unknown';
         if (['wifi', 'wi-fi', 'wlan', 'wireless'].some(k => bestInterface.name.toLowerCase().includes(k))) {
-            netType = 'wi-fi';
+            netType = 'Wi-Fi';
         } else if (['ethernet', 'eth', 'wired'].some(k => bestInterface.name.toLowerCase().includes(k))) {
-            netType = 'wired';
+            netType = 'Ethernet';
         }
         if (netType === 'unknown') {
-            document.getElementById('net-type').style.display = 'none';
+            document.getElementById('net-type').innerText = bestInterface.name;
         } else if ((inKB + outKB) > 10) {
-            document.getElementById('net-type').style.display = 'inline-block';
             document.getElementById('net-type').innerText = netType;
         }
     }

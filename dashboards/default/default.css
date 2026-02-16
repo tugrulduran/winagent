@@ -242,10 +242,15 @@ body {
   font-family: monospace;
   font-size: 12px;
   font-weight: 400;
-  letter-spacing: 10px;
+  /*letter-spacing: 10px;*/
+  display: inline-block;
   color: #00ff5a;
   padding: 2px 17px 2px 2px;
   text-shadow: 0 0 10px #00ff5a;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- MİKSER --- */
