@@ -367,8 +367,30 @@
     let ws;
     const wsUrl = `wss://${window.location.hostname}:3004`;
     const reconnectInterval = 1000;
+    let lastDataReceived = Date.now();
 
     const lockedModules = {};
+
+    function dataReceived() {
+        lastDataReceived = Date.now();
+    }
+
+    function checkAgentStatus() {
+        const timeDiff = (Date.now() - lastDataReceived) / 1000;
+        const badge = document.getElementById('status-live');
+        if (timeDiff < 5) {
+            badge.classList.remove('dead');
+            badge.classList.add('active');
+            badge.innerText = 'AGENT: LIVE';
+        }
+        else {
+            badge.classList.remove('active');
+            badge.classList.add('dead');
+            badge.innerText = 'AGENT: DEAD';
+        }
+    }
+
+    setInterval(checkAgentStatus, 1000);
 
     function lockModuleForMSec(module, msec) {
         lockedModules[module] = setTimeout(() => {
@@ -389,6 +411,7 @@
         };
         ws.onmessage = (e) => {
             // console.log('RAW DATA:', e.data);
+            dataReceived();
             const data = JSON.parse(e.data);
             const event = data.event;
             const payload = data.payload;
@@ -412,8 +435,8 @@
                     }
                     updateAudioDevices(payload.modules.audiodevices);
                 }
-                if ('audeze' in payload.modules) {
-                    updateAudioAudeze(payload.modules.audeze);
+                if ('audezemaxwell' in payload.modules) {
+                    updateAudioAudeze(payload.modules.audezemaxwell);
                 }
                 if ('media' in payload.modules) {
                     updateMedia(payload.modules.media);

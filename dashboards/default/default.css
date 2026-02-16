@@ -12,6 +12,7 @@
   --masterglass: rgba(207, 26, 26, 0.03);
   --sw-passive-color: #404040;
   --sw-active-color: #c860c3;
+  --dead: rgba(255, 0, 0, 0.3);
 }
 
 body {
@@ -508,6 +509,12 @@ body {
   border-color: var(--net);
   text-shadow: 0 0 10px var(--net);
   background: rgba(126, 211, 161, 0.1);
+}
+.badge.dead {
+  border-color: #f00;
+  text-shadow: 0 0 10px #fff;
+  background-color: #f00;
+  color: #fff;
 }
 
 .controls {
