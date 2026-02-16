@@ -368,6 +368,18 @@
     const wsUrl = `wss://${window.location.hostname}:3004`;
     const reconnectInterval = 1000;
 
+    const lockedModules = {};
+
+    function lockModuleForMSec(module, msec) {
+        lockedModules[module] = setTimeout(() => {
+            delete lockedModules[module];
+        }, msec);
+    }
+
+    function isModuleLocked(module) {
+        return lockedModules[module] !== undefined;
+    }
+
     function connect() {
         ws = new WebSocket(wsUrl);
 
@@ -394,8 +406,11 @@
                 if ('volumemixer' in payload.modules) {
                     updateAudioApps(payload.modules.volumemixer);
                 }
-                if ('audiodevice' in payload.modules) {
-                    updateAudioDevices(payload.modules.audiodevice);
+                if ('audiodevices' in payload.modules) {
+                    if (isModuleLocked('audiodevices')) {
+                        return;
+                    }
+                    updateAudioDevices(payload.modules.audiodevices);
                 }
                 if ('audeze' in payload.modules) {
                     updateAudioAudeze(payload.modules.audeze);
@@ -556,17 +571,24 @@
     }
 
     function updateAudioDevices(data) {
-        return;
+        if (!data || !data.ok) {
+            return;
+        }
         const container = document.getElementById('device-list');
         container.innerHTML = '';
 
-        [...devices]
+        [...data.devices]
             .sort((a, b) => a.name.localeCompare(b.name))
             .forEach(dev => {
                 const btn = document.createElement('div');
-                btn.className = `device-btn ${dev.isDefault ? 'active' : ''}`;
+                btn.className = `device-btn ${dev.default ? 'active' : ''}`;
                 btn.innerText = dev.name;
-                btn.onclick = () => callCtrl('setAudioDevice', { device: dev.index });
+                btn.addEventListener('click', () => {
+                    callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
+                    lockModuleForMSec('audiodevices', 3000);
+                    [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
+                    btn.classList.add('active');
+                })
                 container.appendChild(btn);
             });
     }
