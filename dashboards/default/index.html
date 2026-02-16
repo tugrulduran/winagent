@@ -338,7 +338,8 @@
     audioLocked = activePid;
     setTimeout(() => { audioLocked = -1; }, 2000);
 
-    callCtrl('setVolume', {
+    callRequest('volumemixer', {
+      cmd: 'setVolume',
       pid: activePid,
       volume: val / 100
     });
@@ -374,7 +375,7 @@
         if ('basiccpu' in payload.modules) { updateCPU(payload.modules.basiccpu); }
         if ('basicmemory' in payload.modules) { updateRAM(payload.modules.basicmemory); }
         if ('basicnetwork' in payload.modules) { updateNet(payload.modules.basicnetwork); }
-        if ('audio' in payload.modules) { updateAudioApps(payload.modules.audio); }
+        if ('volumemixer' in payload.modules) { updateAudioApps(payload.modules.volumemixer); }
         if ('audiodevice' in payload.modules) { updateAudioDevices(payload.modules.audiodevice); }
         if ('audeze' in payload.modules) { updateAudioAudeze(payload.modules.audeze); }
         if ('media' in payload.modules) { updateMedia(payload.modules.media); }
@@ -453,15 +454,17 @@
   }
 
   function updateAudioApps(data) {
-    return;
+    if (!data || !data.ok) { return; }
     // [...document.getElementsByClassName('strip')].forEach(el => el.remove());
-    apps.forEach(app => {
-      let el = document.getElementById(`pid-${app.pid}`);
+    data.apps.forEach(app => {
+      const pid = parseInt(app.pid);
+      let el = document.getElementById(`pid-${pid}`);
       const vol = Math.round(app.volume * 100);
-      if (audioLocked === app.pid) { return; }
+      if (audioLocked === pid) { return; }
       if (!el) {
         el = document.createElement('div');
-        el.id = `pid-${app.pid}`;
+        el.dataset.type = app.type;
+        el.id = `pid-${pid}`;
         el.className = 'strip';
         const icon = getIconByAppTitle(app.name);
         el.innerHTML = `
@@ -472,17 +475,21 @@
           <div class="vol-label">${vol}</div>
         </div>`;
         el.addEventListener('touchstart', (e) => {
-          activePid = app.pid;
+          activePid = pid;
+          triggerUpdate(e);
+        }, { passive: false });
+        el.addEventListener('click', (e) => {
+          activePid = pid;
           triggerUpdate(e);
         }, { passive: false });
         document.getElementById('mixer').appendChild(el);
-      } else if (activePid !== app.pid) {
+      } else if (activePid !== pid) {
         el.querySelector('.fill').style.height = vol + '%';
         el.querySelector('.vol-label').innerText = vol;
       }
     });
 
-    const pids = apps.map(a => a.pid);
+    const pids = data.apps.map(a => parseInt(a.pid));
     const mixerPids = [...document.getElementsByClassName('strip')].map(el => parseInt(el.id.split('-')[1]));
     mixerPids
       .filter(pid => !pids.includes(pid))
@@ -572,6 +579,9 @@
   }
 </script>
 <script>
+  function callRequest(module, payload) {
+    ws.send(JSON.stringify({ module, payload }));
+  }
   function callCtrl(cmd, payload) {
     ws.send(JSON.stringify({ cmd, payload }));
   }

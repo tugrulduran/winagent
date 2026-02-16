@@ -286,7 +286,7 @@ body {
   transition: height 0.1s linear;
 }
 
-.strip#pid-4294967295 .fill {
+.strip[data-type='0'] .fill {
   background: linear-gradient(to top, #00ff04, rgba(0, 255, 4, 0.55));
 }
 

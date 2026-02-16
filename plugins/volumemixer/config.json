@@ -1,0 +1,9 @@
+{
+  "intervalMs": 1000,
+  "ignoredApps": [
+    "Armoury Crate Service",
+    "ArmouryCrate.UserSessionHelper",
+    "ASUS Optimization",
+    "System"
+  ]
+}

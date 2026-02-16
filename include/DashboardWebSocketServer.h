@@ -89,17 +89,5 @@ private:
 
     PluginManager *m_plugins;
 
-    void handleEvent(const QString &event, const QJsonObject &data);
-
-    // ---- Event handlers (stub) ----
-    void handleSetAudioDevice(const QJsonObject &data);
-
-    void handleRunAction(const QJsonObject &data);
-
-    void handleMediaCtrl(const QJsonObject &data);
-
-    void handleSetVolume(const QJsonObject &data);
-
-    // Generic module request: {"module":"cpu", "payload":{...}}
     void handleModuleRequest(const QJsonObject &data);
 };
