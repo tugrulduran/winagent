@@ -89,7 +89,7 @@
 
 <div id="media-hud" class="media-hud">
   <div class="media-controls-row">
-    <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.Previous })*/">«</div>
+    <div class="nav-btn small" onclick="callRequest('media', { cmd: 'prev' })">«</div>
     <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-30)">-30</div>
     <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-10)">
       <svg viewBox="0 0 24 24" width="35">
@@ -107,7 +107,7 @@
       </svg>
     </div>
     <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(30)">+30</div>
-    <div class="nav-btn small" onclick="/*socket.emit('mediaCtrl', { id: MediaCommands.SeekForward })*/">»</div>
+    <div class="nav-btn small" onclick="callRequest('media', { cmd: 'next' })">»</div>
   </div>
   <div class="media-progress-bg">
     <div id="media-progress-fill"></div>
