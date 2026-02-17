@@ -1,0 +1,34 @@
+set(PLUGIN_NAME "launcher")
+set(tgt WinAgentPlugin_launcher)
+
+add_library(${tgt} SHARED ${PROJECT_SOURCE_DIR}/src/BasePlugin.cpp Plugin.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Launcher.cpp
+)
+
+target_compile_definitions(${tgt} PRIVATE WA_BUILDING_PLUGIN)
+target_include_directories(${tgt} PRIVATE ${PROJECT_SOURCE_DIR}/include src)
+target_link_libraries(${tgt} PRIVATE Qt6::Core Psapi)
+
+if (TARGET WinAgent)
+    set_target_properties(${tgt} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
+            LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
+    )
+    add_custom_command(TARGET ${tgt} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:WinAgent>/plugins"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/config.json"
+            "$<TARGET_FILE_DIR:WinAgent>/plugins/${PLUGIN_NAME}.json"
+    )
+endif()
+
+wa_register_plugin_target(${tgt})
+
+install(TARGETS ${tgt}
+        RUNTIME DESTINATION bin/plugins
+        LIBRARY DESTINATION bin/plugins
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config.json"
+        DESTINATION bin/plugins
+        RENAME "${PLUGIN_NAME}.json"
+)

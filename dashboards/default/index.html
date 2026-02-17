@@ -280,6 +280,32 @@
         }
     }
 
+    function getIconByObj(action) {
+        if (action.icon) {
+            if (action.icon.includes('fa-brands')) {
+                return { type: 'brands', icon: action.icon.replace('fa-brands', '').trim().replace('fa-', '') };
+            }
+            else if (action.icon.includes('fa-regular')) {
+                return { type: 'regular', icon: action.icon.replace('fa-regular', '').trim().replace('fa-', '') };
+            }
+            else if (action.icon.includes('fa-solid')) {
+                return { type: 'solid', icon: action.icon.replace('fa-solid', '').trim().replace('fa-', '') };
+            }
+            else if (action.icon.trim().startsWith('fa-')) {
+                return { type: 'solid', icon: action.icon.trim().replace('fa-', '') };
+            }
+            else if (action.icon.length > 0) {
+                return { type: 'solid', icon: action.icon };
+            }
+            else {
+                return { type: 'solid', icon: 'question' };
+            }
+        }
+        else {
+            return { type: 'solid', icon: 'question' };
+        }
+    }
+
     function getIconByProcessName(name) {
         switch (name) {
             case 'chrome.exe':
@@ -611,7 +637,7 @@
                     lockModuleForMSec('audiodevices', 3000);
                     [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
                     btn.classList.add('active');
-                })
+                });
                 container.appendChild(btn);
             });
     }
@@ -665,7 +691,10 @@
     }
 
     function updateLauncherActions(data) {
-        return;
+        if (!data || !data.ok) {
+            return;
+        }
+
         const launcherZone1 = document.getElementById('launcher-zone-1');
         const launcherZone2 = document.getElementById('launcher-zone-2');
         const launcherZone3 = document.getElementById('launcher-zone-3');
@@ -677,11 +706,11 @@
             }
         });
 
-        actions.forEach(action => {
+        data.apps.forEach(action => {
             const btn = document.createElement('div');
-            btn.className = `launcher-btn ${action.icon}`;
-            btn.onclick = () => callCtrl('runAction', { action: action.id });
-            const icon = getIconById(action.id);
+            btn.className = `launcher-btn`;
+            btn.addEventListener('click', () => callRequest('launcher', { cmd: 'launch', index: action.index }));
+            const icon = getIconByObj(action);
             btn.innerHTML = `<i class="fa-${icon.type} fa-${icon.icon}"></i>`;
             launcherZones[action.zone || 1].appendChild(btn);
         });
@@ -689,7 +718,7 @@
 </script>
 <script>
     function callRequest(module, payload) {
-        // console.log('CALL REQUEST:', module, payload);
+        console.log('CALL REQUEST:', module, payload);
         ws.send(JSON.stringify({ module, payload }));
     }
 

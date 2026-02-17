@@ -1,0 +1,11 @@
+{
+  "intervalMs": 1000,
+  "apps": [
+    {"name": "Calculator", "path": "calc.exe", "icon": "fa-calculator"},
+    {"name": "PowerShell", "path": "powershell.exe", "icon": "fa-terminal"},
+    {"name": "Notepad", "path": "notepad.exe", "icon": "fa-regular fa-file-lines"},
+    {"name": "Files", "path": "explorer.exe", "icon": "fa-regular fa-folder"},
+    {"name": "Chrome", "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "icon": "fa-brands fa-chrome"},
+    {"name": "Steam", "path": "C:\\Program Files (x86)\\Steam\\steam.exe", "icon": "fa-brands fa-steam"}
+  ]
+}
