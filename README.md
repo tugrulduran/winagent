@@ -1,7 +1,8 @@
-# WinAgent
+# 🪟✨ WinAgent
 
 <p align="center">
-  <strong>WinAgent is an open-source Windows host app that loads metric plugins (DLLs), serves a secure HTTPS dashboard, and streams JSON over secure WebSockets (WSS).</strong>
+  <b>Open-source Modular Windows monitoring agent (Qt + C++)</b><br/>
+  <sub>Loads metric plugins (DLLs), serves a secure dashboard (HTTPS), streams real-time JSON (WSS)</sub>
 </p>
 
 <p align="center">
@@ -14,287 +15,507 @@
 
 ---
 
-## What is WinAgent?
+## 📌 What is WinAgent?
 
-**WinAgent** is an **open-source**, lightweight Windows **host** process that:
+**WinAgent** is a small Windows **host app** that:
 
-- loads **metric modules as external plugins** (`.dll`)
-- serves a **static dashboard over HTTPS**
-- streams **structured telemetry as JSON over WSS**
+- ✅ loads **plugins as external DLLs** (you can extend it without changing the host)
+- 🔒 serves a **static dashboard over HTTPS**
+- 📡 streams **real-time telemetry as JSON over secure WebSockets (WSS)**
 
-This design lets you extend the agent without changing the host: ship a new plugin DLL, drop it into the `plugins/` folder, and the dashboard (or any client) can consume the new data immediately.
-
----
-
-## Features
-
-- 🧩 **Plugin system (DLL)**
-    - Host loads `plugins/*.dll`
-    - Optional per-plugin config: `plugins/<id>.json`
-- 🌐 **HTTPS dashboard server**
-    - Serves static files (default dashboard included)
-    - Default port: **3003**
-- 🔌 **WSS (WebSocket Secure) JSON streaming**
-    - Default port: **3004**
-    - Periodic “update” events (default: 1000 ms)
-- 🔒 **TLS support**
-    - Uses `certs/cert.pem` + `certs/key.pem` (self-signed by default)
-    - Override certificate directory via CMake (`WA_CERTS_DIR`)
-- ⚙️ **CMake + Qt6 build**
-- 📦 Example dashboard under `dashboards/default`
+**Idea:** the host stays tiny and stable. New features ship as plugins.
 
 ---
 
+## 🧭 Table of Contents
 
-## Open Source & Community
+- [✨ Features](#-features)
+- [🧱 Project Layout](#-project-layout)
+- [⚡ Quick Start](#-quick-start)
+- [🛠️ Build (CMake)](#️-build-cmake)
+- [🚀 Run & Use](#-run--use)
+- [🧩 Plugin System (How it Works)](#-plugin-system-how-it-works)
+- [📡 WebSocket Protocol](#-websocket-protocol)
+- [🧰 Included Plugins](#-included-plugins)
+- [🧑‍💻 Plugin Development](#-plugin-development)
+- [🧯 Troubleshooting](#-troubleshooting)
+- [📜 License](#-license)
 
-WinAgent is built to be **hackable, auditable, and extensible**:
+---
 
-- ✅ **Open by default**: the host stays small; new capabilities ship as plugins.
-- 🔍 **Transparent architecture**: telemetry is plain **JSON over WSS** and easy to inspect.
-- 🧩 **Composable ecosystem**: write your own modules and share them as independent DLLs.
-- 🤝 **Contributions welcome**: bug reports, feature requests, new plugins, dashboard improvements, docs.
+## ✨ Features
 
-If you use WinAgent in your lab or production and something is missing, please open an issue or send a PR.
-Even small improvements (docs, examples, refactors) help the project a lot.
+- 🧩 **Plugin system**
+  - Host loads: `plugins/*.dll`
+  - Optional per-plugin config: `plugins/<pluginId>.json`
+- 🔒 **HTTPS dashboard server**
+  - Default port: **3003**
+  - Serves static files from: `dashboards/default/`
+- 📡 **WSS JSON stream**
+  - Default port: **3004**
+  - Sends periodic **update** events (default: **1000 ms**)
+- 🧰 **CMake build + auto deploy**
+  - Copies runtime assets next to the exe (dashboard + certs + dll deps)
+  - Runs **windeployqt** automatically (if found)
 
-### Contributing
+---
 
-1. Fork the repo and create a branch:
-    - `feature/<short-name>` or `fix/<short-name>`
-2. Build in **Release** (see “Build” section).
-3. Keep changes focused and add/update docs when relevant.
-4. Open a Pull Request with:
-    - what/why, screenshots (for dashboard changes), and how to test.
+## 🧱 Project Layout
 
-### Suggested contribution ideas
+Typical repo layout:
 
-- New plugins (GPU, disks, temperatures, SMART, UPS, hypervisor stats)
-- More dashboards (light theme, mobile-first, Grafana-style)
-- Hardening release paths (resolve assets via `applicationDirPath()`)
-
-
-## Repository layout
-
-```
+```text
 WinAgent/
 ├─ CMakeLists.txt
 ├─ main.cpp
 ├─ include/                 # host headers + plugin ABI (BasePlugin.h)
 ├─ src/                     # host sources
-├─ plugins/                 # plugin projects (built as DLLs)
-├─ dashboards/default/      # static dashboard served over HTTPS
-├─ certs/                   # default self-signed cert/key
+├─ plugins/                 # plugin projects (each builds a DLL)
+├─ dashboards/default/       # static dashboard (HTML/CSS)
+├─ certs/                   # default TLS cert/key (self-signed)
 └─ lib/                     # 3rd-party runtime (e.g. hidapi*.dll/.lib)
 ```
 
 ---
 
-## Requirements
+## ⚡ Quick Start
+
+### ✅ Requirements
 
 - Windows 10/11 (x64)
-- **Qt 6.x** modules: Core, Widgets, Network, WebSockets, HttpServer
 - **CMake ≥ 3.28**
-- Visual Studio 2022 (MSVC) recommended
+- **Qt 6.x** with modules:
+  - Core, Widgets, Network, HttpServer, WebSockets
+- Visual Studio 2022 (MSVC) recommended (or Ninja)
 
-> You typically provide Qt via `CMAKE_PREFIX_PATH`, e.g. `C:/Qt/6.6.3/msvc2022_64`.
+> Tip: Qt is usually provided using `CMAKE_PREFIX_PATH`, like:
+> `C:/Qt/6.6.3/msvc2022_64`
 
 ---
 
-## Build
+## 🛠️ Build (CMake)
 
-### Visual Studio (multi-config)
+### 🧰 Option A: Visual Studio (multi-config)
 
 ```bat
 cmake -S . -B build ^
   -G "Visual Studio 17 2022" -A x64 ^
   -DCMAKE_PREFIX_PATH="C:/Qt/6.x.x/msvc2022_64"
+```
 
+Build host + all plugins:
+
+```bat
 cmake --build build --config Release --target WinAgent plugins
 ```
 
-Outputs (typical):
+Build only plugins (fast iteration):
 
-```
-build/Release/
-├─ WinAgent.exe
-├─ plugins/                 # plugin DLLs + <id>.json configs
-├─ dashboards/default/      # dashboard static files
-└─ certs/                   # TLS cert/key (or overridden WA_CERTS_DIR)
+```bat
+cmake --build build --config Debug --target plugins
 ```
 
-> The project is set up to run **windeployqt** as a post-build step on Windows (so Qt runtime DLLs land next to the executable).
+### ⚙️ Option B: Ninja (single-config)
+
+```bat
+cmake -S . -B build-ninja ^
+  -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_PREFIX_PATH="C:/Qt/6.x.x/msvc2022_64"
+
+cmake --build build-ninja --target WinAgent plugins
+```
 
 ---
 
-## Run
+## 🧨 Build-time Deploy (Post-build steps)
 
-1) Launch `WinAgent.exe`
-2) Start the dashboard server from the UI (often enabled by default)
+WinAgent’s **CMakeLists.txt** does a lot of work after build. This makes the build folder runnable.
 
-### Dashboard
+### 📦 1) Runtime output folder
 
-Default URL:
+CMake uses:
 
-- `https://<PC-IP>:3003/`
+- `WA_RUNTIME_DIR = $<TARGET_FILE_DIR:WinAgent>`
 
-Browser will warn about the **self-signed certificate** — expected for dev builds.
+So assets are copied **next to `WinAgent.exe`**.
 
-### WebSocket stream
+### 🔌 2) Copy hidapi runtime files (for HID-based plugins)
 
-- `wss://<PC-IP>:3004`
+CMake looks for files under `./lib/`:
 
----
+- `hidapi*.dll`
+- `hidapi*.pdb` (optional, debug)
+- `hidapi*.lib` (optional)
 
-## WebSocket JSON protocol
+They are copied next to the executable.  
+If they are missing, CMake prints a warning.
 
-### Push updates
+### 🎛️ 3) Copy dashboard assets
 
-The server periodically broadcasts messages like:
+This folder is copied:
 
-```json
-{
-  "event": "update",
-  "payload": {
-    "modules": {
-      "cpu": { "cores": 16, "load": 9.87, "ok": true },
-      "<pluginId>": {},
-      "...": {}
-    }
-  }
-}
-```
+- `dashboards/default/` → `<exe_dir>/dashboards/default/`
 
-- `modules` contains snapshots collected from the loaded plugins.
+So the dashboard can be served immediately.
 
-### Requests / commands
+### 🔒 4) Copy TLS certificates
 
-Clients may send commands; the host can route requests to a module:
-
-```json
-{
-  "cmd": "moduleRequest",
-  "payload": {
-    "module": "cpu",
-    "payload": { "hello": "world" }
-  }
-}
-```
-
-> Some handlers may be WIP depending on the module.
-
----
-
-## Plugin system
-
-### Where plugins live
-
-At runtime, the host scans:
-
-```
-<exe_dir>/plugins/*.dll
-```
-
-Optional per-plugin config:
-
-```
-<exe_dir>/plugins/<id>.json
-```
-
-Where `<id>` is returned by the plugin’s `wa_get_info()` (`WaPluginInfo.id`).
-
-### Built-in plugins (in this repo)
-
-- `cpu`
-- `memory`
-- `network`
-- `audio`
-- `audiodevice`
-- `media`
-- `launcher`
-- `process`
-- `audeze`
-
-Each plugin has its own `CMakeLists.txt`, source files, and a `config.json` template.
-
-### Writing a new plugin
-
-The ABI is defined in **`include/BasePlugin.h`**.
-
-Common exports include:
-- `wa_get_info`, `wa_create`, `wa_init`, `wa_start`, `wa_stop`, `wa_destroy`
-- `wa_read`, `wa_request`
-- optional: `wa_pause`, `wa_resume`
-
-Look at the existing plugin folders for working examples.
-
-> Look at the plugins/ folder for more info about the plugin development process.
-
----
-
-## TLS certificates
-
-By default, WinAgent uses the `certs/` folder shipped with the repo:
+WinAgent needs:
 
 - `certs/cert.pem`
 - `certs/key.pem`
 
-To use your own certificate directory at build time:
+By default, CMake copies:
+
+- `./certs/` → `<exe_dir>/certs/`
+
+✅ You can keep certs **outside** the build directory by setting:
 
 ```bat
 cmake -S . -B build ^
   -G "Visual Studio 17 2022" -A x64 ^
   -DCMAKE_PREFIX_PATH="C:/Qt/6.x.x/msvc2022_64" ^
-  -DWA_CERTS_DIR="C:/MyCerts"
+  -DWA_CERTS_DIR="C:/MyWinAgentCerts"
+```
+
+Your folder must contain **cert.pem** and **key.pem**.
+
+### 🚀 5) Auto-run windeployqt (DEV deploy)
+
+On Windows, CMake tries to find `windeployqt` using `CMAKE_PREFIX_PATH` and runs it like:
+
+- Debug → `--debug`
+- Release → `--release`
+
+It copies Qt runtime DLLs next to `WinAgent.exe`.  
+If it cannot find `windeployqt`, it prints a warning.
+
+Manual run example (PowerShell):
+
+```powershell
+& "C:\Qt\6.x.x\msvc2022_64\bin\windeployqt.exe" `
+  --release --compiler-runtime --no-translations `
+  --dir "build\Release" "build\Release\WinAgent.exe"
 ```
 
 ---
 
-## Release / Distribution (recommended flow)
+## 📦 Install / Distribution (clean output folder)
 
-### 1) Build release binaries
-
-```bat
-cmake --build build --config Release --target WinAgent plugins
-```
-
-### 2) Stage an install folder (optional but clean)
-
-If you added install rules (for dashboards/certs/plugins), you can stage like this:
+CMake also has `install()` rules. You can stage a clean folder like this:
 
 ```bat
 cmake --install build --config Release --prefix dist
 ```
 
-### 3) Deploy Qt runtime into `dist/bin`
+Expected output:
 
-In **PowerShell**, use the call operator `&` (important):
-
-```powershell
-& "C:\Qt\6.x.x\msvc2022_64\bin\windeployqt.exe" `
-  --release --compiler-runtime --no-translations `
-  --dir "dist\bin" "dist\bin\WinAgent.exe"
+```text
+dist/
+└─ bin/
+   ├─ WinAgent.exe
+   ├─ dashboards/default/...
+   ├─ certs/...
+   ├─ plugins/               # plugin DLLs + config .json files
+   └─ hidapi*.dll            # if present in ./lib
 ```
 
----
-
-## Troubleshooting
-
-- **Certificate warning in browser**: normal for self-signed certs.
-- **Firewall**: allow ports **3003** (HTTPS) and **3004** (WSS).
-- **Working directory issues**: for robust release builds, prefer resolving
-  `certs/` and `dashboards/` paths relative to `QCoreApplication::applicationDirPath()`.
+Then run `windeployqt` on `dist\bin\WinAgent.exe` (recommended for sharing).
 
 ---
 
-## License
+## 🚀 Run & Use
 
-MIT — see `LICENCE.txt`.
+### 🖥️ Start
+
+1) Run `WinAgent.exe` (double click is OK)  
+2) The UI shows logs and (by default) starts the servers automatically  
+3) Click **Open Dashboard** (or open the URL from the logs)
+
+### 🌍 Dashboard URL (HTTPS)
+
+Default:
+
+- `https://<your-ip>:3003/`
+
+WinAgent prints a URL in the log like:
+
+- `[WEB] Server started! Go to https://192.168.1.10:3003/`
+
+> Browser will warn about a **self-signed certificate** (normal for dev).
+
+### 📡 WebSocket URL (WSS)
+
+Default:
+
+- `wss://<your-ip>:3004`
+
+> On phones/tablets you may need to open the HTTPS page first and accept the cert,
+> then the WSS connection works.
+
+### 🔥 Firewall
+
+Allow ports:
+
+- **3003** (HTTPS dashboard)
+- **3004** (WSS stream)
 
 ---
+
+## 🧩 Plugin System (How it Works)
+
+### 🧠 Mental model
+
+A WinAgent plugin is a **Windows DLL** that:
+
+1) Exports a **small C ABI** (stable function names)
+2) Produces a **JSON snapshot** when the host calls `wa_read()`
+3) Optionally handles **JSON requests** when the host calls `wa_request()`
+
+At runtime, the host:
+
+- scans `<exe_dir>/plugins/*.dll`
+- loads each DLL
+- resolves required exports
+- creates + starts the plugin
+- reads snapshots periodically and broadcasts them
+
+### 📁 Plugin discovery & config
+
+Runtime plugin folder:
+
+```text
+<exe_dir>/plugins/
+├─ *.dll
+└─ <pluginId>.json    (optional)
+```
+
+Config file name is based on **pluginId**, which comes from `wa_get_info()`:
+
+- `WaPluginInfo.id` → `"basiccpu"`
+- Config file must be: `plugins/basiccpu.json`
+
+If the file does not exist, the host passes `nullptr` config to the plugin.
+
+### 🧱 ABI summary (Host ↔ Plugin boundary)
+
+The ABI lives in: `include/BasePlugin.h`
+
+Required exports (names must match exactly):
+
+```cpp
+wa_get_info
+wa_create
+wa_init
+wa_start
+wa_stop
+wa_destroy
+wa_read
+wa_request
+```
+
+Optional exports (may be no-op):
+
+```cpp
+wa_pause
+wa_resume
+```
+
+Version check:
+
+- `WaPluginInfo.apiVersion` must equal `WA_PLUGIN_API_VERSION` (currently `1`)
+
+### 🧵 Threading (important)
+
+Most plugins in this repo use the helper class **BasePlugin**:
+
+- `onTick()` runs on the plugin **worker thread**
+- `onRequest()` runs on the **host thread**
+
+So `onTick()` and `onRequest()` can run at the same time.  
+If you share state, you must protect it with a mutex / atomics.
+
+---
+
+## 📡 WebSocket Protocol
+
+### 📤 Server → Client (periodic update)
+
+Every ~1000 ms the server broadcasts:
+
+```json
+{
+  "event": "update",
+  "payload": {
+    "timestamp": 1700000000,
+    "modules": {
+      "basiccpu": { "...": "..." },
+      "basicmemory": { "...": "..." }
+    }
+  }
+}
+```
+
+- `payload.modules` is the merged snapshots from all loaded plugins.
+
+### 📥 Client → Server (send a command to a plugin)
+
+Send a JSON object like:
+
+```json
+{
+  "module": "launcher",
+  "payload": {
+    "cmd": "launch",
+    "name": "Calculator"
+  }
+}
+```
+
+WinAgent routes this to:
+
+- `PluginManager::request(module, payload)`
+- plugin’s `wa_request()`
+
+If the plugin returns a JSON object, WinAgent sends it back on the socket,
+and also triggers an extra update broadcast shortly after.
+
+---
+
+## 🧰 Included Plugins
+
+All plugins are in `plugins/` and build as DLLs.  
+These are **done and included in the repo**:
+
+- 🧠 **basiccpu** — instant CPU load
+- 🧮 **basicmemory** — instant RAM usage
+- 🌐 **basicnetwork** — interface-based RX/TX speeds
+- 🎧 **audiodevices** — list audio devices
+- 🔊 **volumemixer** — per-app Windows volume mixer
+- 🚀 **launcher** — app shortcut launcher
+- 🎵 **media** — simple media controller
+- 🔋 **audezemaxwell** — Audeze Maxwell battery info (HIDAPI)
+
+### 🗂️ Plugin config examples
+
+Configs live next to DLLs:
+
+- `plugins/basicnetwork.json` supports:
+  - `intervalMs`
+  - `allowedInterfaces` (empty = all)
+
+- `plugins/volumemixer.json` supports:
+  - `intervalMs`
+  - `ignoredApps` (list of app/session names)
+
+- `plugins/launcher.json` supports:
+  - `intervalMs`
+  - `apps` (name/path/icon list)
+
+---
+
+## 🧑‍💻 Plugin Development
+
+Plugin development is documented in:
+
+➡️ **`plugins/README.md`**
+
+That file includes:
+
+- the complete ABI reference
+- BasePlugin lifecycle and threading rules
+- a copy/paste minimal plugin template
+- the CMake pattern used in this repo
+- deployment checklist + common mistakes
+
+**Fast steps (high level):**
+
+1) Create a new folder under `plugins/<myplugin>/`
+2) Add `Plugin.cpp`, `CMakeLists.txt`, and `config.json`
+3) Build:
+
+```bat
+cmake --build build --config Debug --target plugins
+```
+
+4) Your DLL + config will land here:
+
+```text
+<exe_dir>/plugins/<anything>.dll
+<exe_dir>/plugins/<pluginId>.json
+```
+
+5) Run WinAgent. The host auto-loads it on startup.
+
+---
+
+## 🗺️ Roadmap
+
+Planned improvements:
+
+- [ ] 🔐 Basic auth / token for HTTPS + WSS
+- [ ] 👁️ Live watching plugin outputs in the UI
+- [ ] ⚙️ Per-plugin config in the UI (edit JSON safely)
+- [ ] 🔄 Live controls: start / stop plugins + apply config without restart
+- [ ] 🧩 Plugin repository (browse + install plugins from a central place)
+- [ ] 🖥️ Multiple dashboards (choose which one to serve)
+- [ ] 🧯 Plugin watchdog (plugin auto reset on crash/freeze)
+- [ ] 📈 Telemetry history
+- [ ] 🔔 Alerts (CPU/RAM/network threshold) + desktop notification / webhook
+
+---
+
+## 🧯 Troubleshooting
+
+### 🔒 “Certificate warning” in browser
+Normal for self-signed certs. Use your own certs with `-DWA_CERTS_DIR=...`.
+
+### 🔥 Dashboard does not open on phone
+- Same Wi‑Fi network?
+- Firewall allows **3003** and **3004**?
+- Open `https://<ip>:3003/` first to accept the cert.
+
+### 🧩 Plugin not loading
+Checklist:
+
+- DLL is in `<exe_dir>/plugins/`
+- Required exports exist (names must match)
+- `WaPluginInfo.apiVersion == WA_PLUGIN_API_VERSION`
+- `WaPluginInfo.id` is not null
+- If you have config, file name matches `<pluginId>.json`
+
+### 🧰 “windeployqt not found”
+Make sure Qt `bin/` is reachable:
+- set `CMAKE_PREFIX_PATH` to your Qt root
+- or run `windeployqt` manually
+
+---
+
+## 📜 License
+
+MIT — see **`LICENCE.txt`**.
+
+---
+
+<p align="center">
+  <sub>Made with ❤️ in C++ / Qt • Plugins welcome</sub>
+</p>
+
+---
+
 <p align="center">
   <img src="https://img.shields.io/badge/open--source-%E2%9C%94-brightgreen"/>
   <img src="https://img.shields.io/badge/license-MIT-green"/>
   <img src="https://img.shields.io/badge/contributions-welcome-orange"/>
 </p>
 
+---
+
+## 📷 Screenshots
+
+Server:
+![img-ss1.png](docs/img-ss1.png)
+
+Client on tablet:
+![img-ss2.png](docs/img-ss2.png)
