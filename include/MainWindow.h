@@ -5,14 +5,9 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTimer>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QLabel>
-#include <QGroupBox>
-#include <QProcess>
 #include <QThread>
 #include <memory>
-#include <vector>
 
 #include "PluginManager.h"
 #include "DashboardServer.h"

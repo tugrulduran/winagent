@@ -1,14 +1,12 @@
 #include "MainWindow.h"
 
 #include <iostream>
-#include <QDateTime>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QScrollBar>
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
-#include <QJsonObject>
 #include <QDesktopServices>
 #include <QUrl>
 

@@ -3,7 +3,6 @@
 #include <QJsonArray>
 #include "Launcher.h"
 
-
 namespace launcher {
     void Launcher::init(QJsonObject config) {
         const QJsonValue v = config.value("apps");

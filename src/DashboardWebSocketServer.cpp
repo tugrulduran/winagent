@@ -2,8 +2,6 @@
 
 #include <QFile>
 #include <QSslKey>
-#include <QJsonObject>
-#include <QJsonArray>
 #include <QThread>
 #include <QMetaObject>
 #include <QTimer>
