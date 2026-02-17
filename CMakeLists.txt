@@ -62,6 +62,7 @@ add_executable(WinAgent WIN32
 
         include/Logger.h
         src/BasePlugin.cpp
+        icon.rc
 )
 
 # -------------------------
