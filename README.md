@@ -1,4 +1,4 @@
-# 🪟✨ WinAgent
+![readme_header_logo.png](docs/readme_header_logo.png)
 
 <p align="center">
   <b>Open-source Modular Windows monitoring agent (Qt + C++)</b><br/>

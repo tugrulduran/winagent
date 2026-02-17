@@ -79,20 +79,6 @@ target_link_libraries(WinAgent PRIVATE
         Qt6::Network
         Qt6::HttpServer
         Qt6::WebSockets
-        psapi
-        pdh
-        ws2_32
-        iphlpapi
-        runtimeobject
-        ole32
-        oleaut32
-        shlwapi
-        version
-        user32
-        advapi32
-        uuid
-        hidapi
-        setupapi
 )
 
 # -------------------------
