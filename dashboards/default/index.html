@@ -362,7 +362,9 @@
         if (!el) {
             return;
         }
-        const rect = el.getBoundingClientRect(), cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const rect = el.getBoundingClientRect();
+        const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
+        if (cy == null) return;
         let val = Math.max(0, Math.min(100, Math.round(((rect.bottom - cy) / rect.height) * 100)));
         el.querySelector('.fill').style.height = val + '%';
         el.querySelector('.vol-label').innerText = val;
@@ -379,12 +381,13 @@
         });
     }
 
-    window.addEventListener('touchmove', (e) => {
-        if (activePid) {
-            triggerUpdate(e);
-        }
-    }, { passive: false });
-    window.addEventListener('touchend', () => {
+    window.addEventListener('pointermove', (e) => {
+        if (activePid !== null) triggerUpdate(e);
+    });
+    window.addEventListener('pointerup', () => {
+        activePid = null;
+    });
+    window.addEventListener('pointercancel', () => {
         activePid = null;
     });
 </script>
@@ -584,10 +587,11 @@
                       <div class="vol-label">${vol}</div>
                     </div>`;
 
-                el.addEventListener('touchstart', (e) => {
+                el.addEventListener('pointerdown', (e) => {
                     activePid = pid;
+                    el.setPointerCapture?.(e.pointerId);   // drag kaçmasın
                     triggerUpdate(e);
-                }, { passive: false });
+                });
                 document.getElementById('mixer').appendChild(el);
             }
             else {

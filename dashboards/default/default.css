@@ -280,6 +280,7 @@ body {
   justify-content: flex-end;
   cursor: ns-resize;
   border: 2px solid rgba(255, 255, 255, 0.08);
+  touch-action: none;
 }
 
 .fill {
