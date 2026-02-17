@@ -8,8 +8,6 @@
 #include <QMetaObject>
 #include <QTimer>
 
-#include "Dashboard.h"
-#include "DashboardData.h"
 #include "Logger.h"
 #include "PluginManager.h"
 

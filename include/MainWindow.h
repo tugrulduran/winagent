@@ -14,7 +14,6 @@
 #include <memory>
 #include <vector>
 
-#include "Dashboard.h"
 #include "PluginManager.h"
 #include "DashboardServer.h"
 #include "DashboardWebSocketServer.h"
@@ -48,13 +47,8 @@ signals:
     void dashboardServerError(const QString &msg);
 
 private slots:
-    // Refresh the UI from the latest monitor data.
-    void runMonitorCycle();
-
-    // Clear the debug log widget.
     void clearLogs();
 
-    // Start/stop the Node.js UDP server process.
     void toggleServer();
 
 private:
@@ -62,7 +56,6 @@ private:
     void setupUI();
     void openDashboard();
 
-    Dashboard &dashboard_ = Dashboard::instance();
     QUrl m_dashboardUrl;
 
     // tabs
@@ -95,8 +88,6 @@ private:
     DashboardServer *m_DashboardWebServer{nullptr};
     DashboardWebSocketServer *m_DashboardSocketServer{nullptr};
     std::atomic_bool m_serverRunning{false};
-
-    QTimer *m_reloadDataTimer{nullptr};
 };
 
 #endif

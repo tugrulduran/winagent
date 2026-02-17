@@ -67,10 +67,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     m_DashboardServerThread->start();
     if (autostart) { startDashboardServer(); }
-
-    m_reloadDataTimer = new QTimer(this);
-    connect(m_reloadDataTimer, &QTimer::timeout, this, &MainWindow::runMonitorCycle);
-    m_reloadDataTimer->start(1000);
 }
 
 void MainWindow::startDashboardServer() {
@@ -130,16 +126,8 @@ void MainWindow::setupUI() {
     btnToggleServer->setGeometry(940, 10, 250, 51);
     btnToggleServer->setFont(btnFont);
 
-    btnManualTrigger = new QPushButton("Manual Trigger", tabDashboard);
-    btnManualTrigger->setGeometry(940, 70, 250, 51);
-    btnManualTrigger->setFont(btnFont);
-
-    btnListAudioDevices = new QPushButton("List Audio Devices", tabDashboard);
-    btnListAudioDevices->setGeometry(940, 130, 250, 51);
-    btnListAudioDevices->setFont(btnFont);
-
     btnOpenDashboard = new QPushButton("Open Dashboard", tabDashboard);
-    btnOpenDashboard->setGeometry(940, 190, 250, 51);
+    btnOpenDashboard->setGeometry(940, 70, 250, 51);
     btnOpenDashboard->setFont(btnFont);
     btnOpenDashboard->setEnabled(false); // server yokken disabled
 
@@ -150,34 +138,6 @@ void MainWindow::setupUI() {
     txtDebug = new QPlainTextEdit(tabDashboard);
     txtDebug->setGeometry(0, 310, 1200, 260);
     txtDebug->setReadOnly(true);
-
-    auto makeTitle = [&](const QString &text, int y) {
-        QLabel *l = new QLabel(text, tabDashboard);
-        l->setGeometry(10, y, 200, 50);
-        l->setFont(bigFont);
-        l->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        return l;
-    };
-
-    makeTitle("CPU Load:", 10);
-    makeTitle("Memory:", 70);
-    makeTitle("Network:", 130);
-    makeTitle("Media:", 190);
-    makeTitle("Audio:", 250);
-
-    auto makeValue = [&](int y) {
-        QLabel *l = new QLabel("-", tabDashboard);
-        l->setGeometry(230, y, 600, 50);
-        l->setFont(bigFont);
-        l->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        return l;
-    };
-
-    lblCpuLoad = makeValue(10);
-    lblMemory = makeValue(70);
-    lblNetwork = makeValue(130);
-    lblMedia = makeValue(190);
-    lblAudio = makeValue(250);
 
     // =======================
     // Config TAB
@@ -195,110 +155,13 @@ void MainWindow::setupUI() {
     // Connections
     // =======================
     connect(btnToggleServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
-    connect(btnManualTrigger, &QPushButton::clicked, this, &MainWindow::runMonitorCycle);
     connect(btnClose, &QPushButton::clicked, qApp, &QApplication::quit);
-
-    connect(btnListAudioDevices, &QPushButton::clicked, this, [this]() {
-        auto devices = dashboard_.data.audio.devices.snapshot();
-        Logger::info("|||||||||| ACTIVE AUDIO DEVICES ||||||||||", true);
-        for (const auto &d: devices) {
-            Logger::info(QString("%1 [%2] %3")
-                         .arg(d.isDefault ? " ✓ " : "")
-                         .arg(d.index)
-                         .arg(QString::fromWCharArray(d.name.c_str())
-                         ), d.isDefault);
-        }
-    });
 
     connect(btnOpenDashboard, &QPushButton::clicked, this, [this]() {
         if (m_dashboardUrl.isValid()) {
             QDesktopServices::openUrl(m_dashboardUrl);
         }
     });
-}
-
-void MainWindow::runMonitorCycle() {
-    // CPU is now provided by an external plugin (cpu.dll), so no dynamic_cast.
-    {
-        const auto cpuload = dashboard_.data.cpu.getLoad();
-        const auto cpucores = dashboard_.data.cpu.getCores();
-        lblCpuLoad->setText(QString("%1% (%2 cores)")
-            .arg(cpuload, 0, 'f', 1)
-            .arg(cpucores));
-    }
-
-    // Pull the latest data from each monitor and update labels.
-    // Each monitor returns a copy (thread-safe), so the UI never holds monitor locks.
-
-    /*
-    for (const auto &monitor: monitors) {
-        if (auto m = dynamic_cast<MemoryMonitor *>(monitor.get())) {
-            auto totalMem = dashboard_.data.memory.getTotal() / 1024.0 / 1024.0 / 1024.0;
-            auto usedMem = dashboard_.data.memory.getUsed() / 1024.0 / 1024.0 / 1024.0;
-            auto percent = usedMem / totalMem;
-            lblMemory->setText(QString("%1 / %2 GB (%3%)")
-                .arg(usedMem, 0, 'f', 0)
-                .arg(totalMem, 0, 'f', 0)
-                .arg(percent * 100, 0, 'f', 0)
-            );
-        }
-        else if (auto m = dynamic_cast<NetworkMonitor *>(monitor.get())) {
-            // Build a short per-interface summary for the label.
-            auto rxSpeed = dashboard_.data.network.getRxBytes() / 1024.0 / 1024.0;
-            auto txSpeed = dashboard_.data.network.getTxBytes() / 1024.0 / 1024.0;
-            lblNetwork->setText(QString("DL: %1, UL: %2 MB/sec")
-                .arg(rxSpeed, 0, 'f', 2)
-                .arg(txSpeed, 0, 'f', 2)
-            );
-        }
-        else if (auto m = dynamic_cast<MediaMonitor *>(monitor.get())) {
-            if (dashboard_.data.media.getSource() != MEDIA_SOURCE_NO_MEDIA) {
-                lblMedia->setText(QString("%1").arg(QString::fromStdWString(dashboard_.data.media.getTitle())));
-            }
-            else {
-                lblMedia->setText("Idle");
-            }
-        }
-        /*
-        else if (auto m = dynamic_cast<AudioMonitor *>(monitor.get())) {
-            // Simple "active channel" count: how many apps currently have volume > 0.
-            int active = 0;
-            // for (auto &app : m->getData().apps) if (app.volume > 0) active++;
-            lblAudioApps->setText(QString("Active Audio Channels: %1").arg(active));
-        }
-        else if (auto m = dynamic_cast<AudezeMonitor *>(monitor.get())) {
-            // Simple "active channel" count: how many apps currently have volume > 0.
-            int battery = dashboard_.data.audeze.getBattery();
-            // for (auto &app : m->getData().apps) if (app.volume > 0) active++;
-            lblAudioApps->setText(QString("Headset battery: %1").arg(battery));
-        }
-        else if (auto m = dynamic_cast<ProcessMonitor *>(monitor.get())) {
-            // Show the foreground application and select an icon based on filename.
-            std::string appName = ""; //m->getData().activeProcessName;
-            lblAppName->setText(QString("Active: %1").arg(QString::fromStdString(appName)));
-
-            // Icon selection rules (simple mapping).
-            QString iconPath = ":/icons/default.png";
-
-            if (appName == "xplane.exe") {
-                iconPath = ":/icons/airplane.png";
-            }
-            else if (appName == "clion64.exe") {
-                iconPath = ":/icons/coding.png";
-            }
-            else if (appName == "chrome.exe") {
-                iconPath = ":/icons/web.png";
-            }
-
-            // Load and display the icon.
-            QPixmap pix(iconPath);
-            if (!pix.isNull()) {
-                lblAppIcon->setPixmap(pix.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            }
-        }
-    #1#
-    }
-*/
 }
 
 void MainWindow::clearLogs() {

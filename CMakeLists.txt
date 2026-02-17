@@ -52,8 +52,6 @@ add_executable(WinAgent WIN32
         main.cpp
         include/MainWindow.h
         include/PluginManager.h
-        include/Dashboard.h
-        include/DashboardData.h
         include/DashboardServer.h
         include/DashboardWebSocketServer.h
 
