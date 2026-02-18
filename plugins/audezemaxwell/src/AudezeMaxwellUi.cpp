@@ -18,16 +18,16 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
-static constexpr const char* kPluginId = "audezemaxwell";
+static constexpr const char *kPluginId = "audezemaxwell";
 
 QString AudezeMaxwellUi::stateToText(int32_t state) {
     switch (state) {
         case WA_STATE_MISSING: return "MISSING";
         case WA_STATE_RUNNING: return "RUNNING";
-        case WA_STATE_PAUSED:  return "STOPPED";
+        case WA_STATE_PAUSED: return "STOPPED";
         case WA_STATE_STOPPED: return "STOPPED";
-        case WA_STATE_ERROR:   return "ERROR";
-        default:               return "UNKNOWN";
+        case WA_STATE_ERROR: return "ERROR";
+        default: return "UNKNOWN";
     }
 }
 
@@ -37,18 +37,17 @@ QString AudezeMaxwellUi::configPath() {
     return QDir(base).filePath(QString("plugins/%1/config.json").arg(QString::fromUtf8(kPluginId)));
 }
 
-AudezeMaxwellUi::AudezeMaxwellUi(WaHostApi* api, QWidget* parent)
+AudezeMaxwellUi::AudezeMaxwellUi(WaHostApi *api, QWidget *parent)
     : QWidget(parent), api_(api) {
-
-    auto* root = new QVBoxLayout(this);
+    auto *root = new QVBoxLayout(this);
     root->setContentsMargins(12, 12, 12, 12);
     root->setSpacing(12);
 
     // =====================
     // Status / Controls
     // =====================
-    auto* grpStatus = new QGroupBox("Plugin Status", this);
-    auto* statusLayout = new QHBoxLayout(grpStatus);
+    auto *grpStatus = new QGroupBox("Plugin Status", this);
+    auto *statusLayout = new QHBoxLayout(grpStatus);
 
     lblStatus_ = new QLabel("Status: ...", grpStatus);
     lblStatus_->setMinimumWidth(260);
@@ -68,14 +67,14 @@ AudezeMaxwellUi::AudezeMaxwellUi(WaHostApi* api, QWidget* parent)
     // =====================
     // Settings
     // =====================
-    auto* grpSettings = new QGroupBox("Audeze Maxwell Settings", this);
-    auto* settingsLayout = new QHBoxLayout(grpSettings);
+    auto *grpSettings = new QGroupBox("Audeze Maxwell Settings", this);
+    auto *settingsLayout = new QHBoxLayout(grpSettings);
 
-    auto* lblInterval = new QLabel("Interval:", grpSettings);
+    auto *lblInterval = new QLabel("Interval:", grpSettings);
     spinInterval_ = new QSpinBox(grpSettings);
-    spinInterval_->setRange(250, 60 * 60 * 1000);
-    spinInterval_->setSingleStep(250);
-    spinInterval_->setSuffix(" ms");
+    spinInterval_->setRange(1, 60);
+    spinInterval_->setSingleStep(1);
+    spinInterval_->setSuffix(" min");
 
     btnSave_ = new QPushButton("Save", grpSettings);
 
@@ -134,12 +133,12 @@ AudezeMaxwellUi::AudezeMaxwellUi(WaHostApi* api, QWidget* parent)
 void AudezeMaxwellUi::loadFromDisk() {
     QFile f(configPath());
     if (!f.exists()) {
-        spinInterval_->setValue(10000);
+        spinInterval_->setValue(1);
         return;
     }
     if (!f.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "Audeze", "Failed to open config file for reading.\n" + configPath());
-        spinInterval_->setValue(10000);
+        spinInterval_->setValue(1);
         return;
     }
 
@@ -150,12 +149,16 @@ void AudezeMaxwellUi::loadFromDisk() {
     const QJsonDocument doc = QJsonDocument::fromJson(bytes, &perr);
     if (perr.error != QJsonParseError::NoError || !doc.isObject()) {
         QMessageBox::warning(this, "Audeze", "Config JSON parse error.\n" + perr.errorString());
-        spinInterval_->setValue(10000);
+        spinInterval_->setValue(1);
         return;
     }
 
     const QJsonObject root = doc.object();
-    spinInterval_->setValue(root.value("intervalMs").toInt(10000));
+    const int intervalMs = root.value("intervalMs").toInt(60000);
+    int minutes = qRound(intervalMs / 60000.0); // yuvarla
+    minutes = qBound(1, minutes, 60); // clamp
+
+    spinInterval_->setValue(minutes);
 }
 
 bool AudezeMaxwellUi::saveToDisk() {
@@ -166,7 +169,10 @@ bool AudezeMaxwellUi::saveToDisk() {
     }
 
     QJsonObject root;
-    root.insert("intervalMs", spinInterval_->value());
+    const qint64 minutes = spinInterval_->value();
+    const qint64 intervalMs = minutes * 60 * 1000;   // 64-bit güvenli
+
+    root.insert("intervalMs", intervalMs);
 
     QSaveFile sf(configPath());
     if (!sf.open(QIODevice::WriteOnly)) {
