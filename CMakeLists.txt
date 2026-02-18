@@ -19,7 +19,6 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network HttpServer WebSockets)
 include_directories(include)
 
 # ---- Runtime assets / external files ----
-# Certs'i build klasörü DIŞINDA tutmak için:
 set(WA_CERTS_DIR "" CACHE PATH "Path to certificate folder to copy next to the app (outside build dir recommended)")
 
 function(wa_copy_files_post_build target dest_dir)
@@ -47,21 +46,22 @@ function(wa_copy_dir_post_build target src_dir dest_dir)
 endfunction()
 
 # Application sources and headers.
-# Note: headers are listed so IDEs show them nicely; CMake does not compile headers by themselves.
 add_executable(WinAgent WIN32
         main.cpp
-        include/MainWindow.h
-        include/PluginManager.h
-        include/DashboardServer.h
-        include/DashboardWebSocketServer.h
 
         src/MainWindow.cpp
-        src/PluginManager.cpp
         src/DashboardServer.cpp
         src/DashboardWebSocketServer.cpp
+        src/BasePlugin.cpp
+        src/PluginManager.cpp
+
+        include/MainWindow.h
+        include/DashboardServer.h
+        include/DashboardWebSocketServer.h
+        include/BasePlugin.h
+        include/PluginManager.h
 
         include/Logger.h
-        src/BasePlugin.cpp
         icon.rc
 )
 
@@ -74,56 +74,26 @@ add_subdirectory(plugins)
 target_link_directories(WinAgent PRIVATE "${CMAKE_SOURCE_DIR}/lib")
 
 # Link against Qt and Windows system libraries used by different monitors.
-target_link_libraries(WinAgent PRIVATE
-        Qt6::Widgets
-        Qt6::Network
-        Qt6::HttpServer
-        Qt6::WebSockets
-)
+target_link_libraries(WinAgent PRIVATE Qt6::Widgets Qt6::Network Qt6::HttpServer Qt6::WebSockets)
 
 # -------------------------
 # Post-build deployment (copy runtime deps/assets + Qt deploy)
 # -------------------------
 set(WA_RUNTIME_DIR "$<TARGET_FILE_DIR:WinAgent>")
 
-# (1) Copy hidapi runtime files from project_root/lib -> next to exe
-# Not: .lib runtime için şart değil ama istediğin için onu da kopyalıyoruz.
-#[[
-file(GLOB HIDAPI_FILES CONFIGURE_DEPENDS
-        "${CMAKE_SOURCE_DIR}/lib/hidapi*.dll"
-        "${CMAKE_SOURCE_DIR}/lib/hidapi*.pdb"
-        "${CMAKE_SOURCE_DIR}/lib/hidapi*.lib"
-)
-if (HIDAPI_FILES)
-    wa_copy_files_post_build(WinAgent "${WA_RUNTIME_DIR}" ${HIDAPI_FILES})
-else()
-    message(WARNING "No hidapi*.(dll|pdb|lib) found under ${CMAKE_SOURCE_DIR}/lib")
-endif()
-]]
+# Copy dashboard/default -> next to exe (dashboard/default)
+wa_copy_dir_post_build(WinAgent "${CMAKE_SOURCE_DIR}/dashboards/default" "${WA_RUNTIME_DIR}/dashboards/default")
 
-# (4) Copy dashboard/default -> next to exe (dashboard/default)
-wa_copy_dir_post_build(WinAgent
-        "${CMAKE_SOURCE_DIR}/dashboards/default"
-        "${WA_RUNTIME_DIR}/dashboards/default"
-)
-
-# (2) Copy certificates (recommended: keep outside build dir)
+# Copy certificates (recommended: keep outside build dir)
 # Example configure: -DWA_CERTS_DIR="C:/Users/tugru/WinAgentCerts"
 if (WA_CERTS_DIR)
-    wa_copy_dir_post_build(WinAgent
-            "${WA_CERTS_DIR}"
-            "${WA_RUNTIME_DIR}/certs"
-    )
+    wa_copy_dir_post_build(WinAgent "${WA_CERTS_DIR}" "${WA_RUNTIME_DIR}/certs")
 else()
-    wa_copy_dir_post_build(WinAgent
-            "${CMAKE_SOURCE_DIR}/certs"
-            "${WA_RUNTIME_DIR}/certs"
-    )
-
+    wa_copy_dir_post_build(WinAgent "${CMAKE_SOURCE_DIR}/certs" "${WA_RUNTIME_DIR}/certs")
     message(STATUS "WA_CERTS_DIR not set; using ./certs .")
 endif()
 
-# (3) Run windeployqt automatically after build (DEV deploy)
+# Run windeployqt automatically after build (DEV deploy)
 if (WIN32)
     # Build tool'a verdiğin CMAKE_PREFIX_PATH genelde Qt root'u içerir -> bin/windeployqt.exe
     set(_qt_hint_bins "")
@@ -172,30 +142,3 @@ endif()
 target_link_options(WinAgent PRIVATE "/SUBSYSTEM:WINDOWS")
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN)
-
-#[[
-include(FetchContent)
-
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-)
-
-FetchContent_MakeAvailable(googletest)
-
-enable_testing()
-
-add_executable(
-        BaseMonitorTests
-        test/BaseMonitorTest.cpp
-        include/BasePlugin.h
-)
-
-target_link_libraries(
-        BaseMonitorTests
-        gtest_main
-)
-
-include(GoogleTest)
-gtest_discover_tests(BaseMonitorTests)
-]]
