@@ -1,5 +1,6 @@
 #include "PluginManager.h"
 
+#include <windows.h>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -41,91 +42,123 @@ PluginManager::Loaded* PluginManager::findLoadedNoLock(const QString& id) const 
 }
 
 bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
-    std::lock_guard<std::mutex> g(mu_);
+    {
+        std::lock_guard<std::mutex> g(mu_);
+        pluginsDir_ = dirPath;
+        hostCtx_ = hostCtx;
+    }
 
-    pluginsDir_ = dirPath;
-    hostCtx_ = hostCtx;
-
-    QDir dir(dirPath);
-    if (!dir.exists()) {
+    QDir root(dirPath);
+    if (!root.exists()) {
         Logger::info("[PLUGIN] No plugins directory: " + dirPath);
         return true;
     }
 
-    const auto dlls = dir.entryList(QStringList() << "*.dll", QDir::Files);
-    for (const auto& dllName : dlls) {
-        auto p = std::make_unique<Loaded>();
-        p->lib.setFileName(dir.absoluteFilePath(dllName));
+    // New layout:
+    // plugins/<name>/<name>.dll
+    // plugins/<name>/config.json
+    const auto subdirs = root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
 
-        if (!p->lib.load()) {
-            Logger::error("[PLUGIN] Load failed: " + dllName + " => " + p->lib.errorString());
-            continue;
+    for (const QFileInfo& sub : subdirs) {
+        const QString folderName = sub.fileName();
+        QDir pd(sub.absoluteFilePath());
+
+        // Prefer known dll names first
+        QStringList candidates;
+        candidates << pd.absoluteFilePath(folderName + ".dll");
+
+        for (const QString& dllPath : candidates) {
+            if (!QFileInfo::exists(dllPath))
+                continue;
+
+            auto p = std::make_unique<Loaded>();
+            p->lib.setFileName(dllPath);
+
+            const QString folder = QFileInfo(dllPath).absolutePath();
+            SetDllDirectoryW(reinterpret_cast<LPCWSTR>(folder.utf16()));
+
+            if (!p->lib.load()) {
+                Logger::error("[PLUGIN] Load failed: " + QFileInfo(dllPath).fileName() + " => " + p->lib.errorString());
+                continue;
+            }
+
+            // Resolve required exports
+            p->get_info = (FnGetInfo)p->lib.resolve("wa_get_info");
+            p->create   = (FnCreate)p->lib.resolve("wa_create");
+            p->init     = (FnInit)p->lib.resolve("wa_init");
+            p->start    = (FnStart)p->lib.resolve("wa_start");
+            p->stop     = (FnStop)p->lib.resolve("wa_stop");
+            p->destroy  = (FnDestroy)p->lib.resolve("wa_destroy");
+            p->read     = (FnRead)p->lib.resolve("wa_read");
+            p->req      = (FnReq)p->lib.resolve("wa_request");
+
+            // Optional exports
+            p->pause         = (FnPause)p->lib.resolve("wa_pause");
+            p->resume        = (FnResume)p->lib.resolve("wa_resume");
+            p->create_widget = (FnCreateWidget)p->lib.resolve("wa_create_widget");
+
+            const bool missingRequired =
+                !p->get_info || !p->create || !p->init || !p->start ||
+                !p->stop || !p->destroy || !p->read || !p->req;
+
+            if (missingRequired) {
+                Logger::error("[PLUGIN] Missing exports: " + QFileInfo(dllPath).fileName());
+                p->lib.unload();
+                continue;
+            }
+
+            p->info = p->get_info();
+            if (!p->info || p->info->apiVersion != WA_PLUGIN_API_VERSION || !p->info->id) {
+                Logger::error("[PLUGIN] Invalid plugin info: " + QFileInfo(dllPath).fileName());
+                p->lib.unload();
+                continue;
+            }
+
+            // Config: plugins/<folderName>/config.json
+            const QString cfgPath = pd.absoluteFilePath("config.json");
+            p->configPath = cfgPath;
+            const QByteArray cfgJson = readTextFileIfExists(cfgPath);
+
+            p->handle = p->create(hostCtx, cfgJson.isEmpty() ? nullptr : cfgJson.constData());
+            if (!p->handle) {
+                Logger::error(QString("[PLUGIN] create() failed: %1 (%2)")
+                                  .arg(p->info->name).arg(p->info->id));
+                p->lib.unload();
+                continue;
+            }
+
+            if (p->init(p->handle) != WA_OK) {
+                Logger::error(QString("[PLUGIN] init() failed: %1 (%2)")
+                                  .arg(p->info->name).arg(p->info->id));
+                p->destroy(p->handle);
+                p->handle = nullptr;
+                p->lib.unload();
+                continue;
+            }
+
+            if (p->start(p->handle) != WA_OK) {
+                Logger::error(QString("[PLUGIN] start() failed: %1 (%2)")
+                                  .arg(p->info->name).arg(p->info->id));
+                p->destroy(p->handle);
+                p->handle = nullptr;
+                p->lib.unload();
+                continue;
+            }
+
+            p->state = State::Running;
+
+            const auto name = p->info->name ? p->info->name : p->info->id;
+            const auto id = p->info->id;
+
+            {
+                std::lock_guard<std::mutex> g(mu_);
+                byId_[p->info->id] = plugins_.size();
+                plugins_.push_back(std::move(p));
+            }
+
+            Logger::success(QString("[PLUGIN] Loaded: %1 (%2)").arg(name).arg(id));
+            break;
         }
-
-        // Resolve required exports
-        p->get_info = (FnGetInfo)p->lib.resolve("wa_get_info");
-        p->create   = (FnCreate)p->lib.resolve("wa_create");
-        p->init     = (FnInit)p->lib.resolve("wa_init");
-        p->start    = (FnStart)p->lib.resolve("wa_start");
-        p->stop     = (FnStop)p->lib.resolve("wa_stop");
-        p->destroy  = (FnDestroy)p->lib.resolve("wa_destroy");
-        p->read     = (FnRead)p->lib.resolve("wa_read");
-        p->req      = (FnReq)p->lib.resolve("wa_request");
-
-        // Optional exports
-        p->pause   = (FnPause)p->lib.resolve("wa_pause");
-        p->resume  = (FnResume)p->lib.resolve("wa_resume");
-        p->create_widget = (FnCreateWidget)p->lib.resolve("wa_create_widget");
-
-        const bool missingRequired =
-            !p->get_info || !p->create || !p->init || !p->start ||
-            !p->stop || !p->destroy || !p->read || !p->req;
-        if (missingRequired) {
-            Logger::error("[PLUGIN] Missing exports: " + dllName);
-            p->lib.unload();
-            continue;
-        }
-
-        p->info = p->get_info();
-        if (!p->info || p->info->apiVersion != WA_PLUGIN_API_VERSION || !p->info->id) {
-            Logger::error("[PLUGIN] Invalid plugin info: " + dllName);
-            p->lib.unload();
-            continue;
-        }
-
-        // Load per-plugin config (optional): <plugins_dir>/<id>/config.json
-        // (Project convention: each plugin owns its folder.)
-        const QString cfgPath = dir.absoluteFilePath(QString("%1/config.json").arg(QString::fromUtf8(p->info->id)));
-        p->configPath = cfgPath;
-        const QByteArray cfgJson = readTextFileIfExists(cfgPath);
-
-        p->handle = p->create(hostCtx, cfgJson.isEmpty() ? nullptr : cfgJson.constData());
-        if (!p->handle) {
-            Logger::error(QString("[PLUGIN] create() failed: %1 (%2)").arg(p->info->name).arg(p->info->id));
-            p->lib.unload();
-            continue;
-        }
-
-        if (p->init(p->handle) != WA_OK) {
-            Logger::error(QString("[PLUGIN] init() failed: %1 (%2)").arg(p->info->name).arg(p->info->id));
-            p->destroy(p->handle);
-            p->handle = nullptr;
-            p->lib.unload();
-            continue;
-        }
-        if (p->start(p->handle) != WA_OK) {
-            Logger::error(QString("[PLUGIN] start() failed: %1 (%2)").arg(p->info->name).arg(p->info->id));
-            p->destroy(p->handle);
-            p->handle = nullptr;
-            p->lib.unload();
-            continue;
-        }
-
-        p->state = State::Running;
-
-        byId_[p->info->id] = plugins_.size();
-        Logger::success(QString("[PLUGIN] Loaded: %1 (%2)").arg(p->info->name).arg(p->info->id));
-        plugins_.push_back(std::move(p));
     }
 
     return true;

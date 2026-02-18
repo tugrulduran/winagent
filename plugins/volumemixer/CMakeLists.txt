@@ -1,5 +1,5 @@
 set(PLUGIN_NAME "volumemixer")
-set(tgt WinAgentPlugin_volumemixer)
+set(tgt volumemixer)
 
 add_library(${tgt} SHARED ${PROJECT_SOURCE_DIR}/src/BasePlugin.cpp Plugin.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MixerMonitor.cpp
@@ -12,8 +12,8 @@ target_link_libraries(${tgt} PRIVATE Qt6::Core Qt6::Widgets Psapi)
 
 if (TARGET WinAgent)
     set_target_properties(${tgt} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
-            LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
+            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins/${PLUGIN_NAME}"
+            LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins/${PLUGIN_NAME}"
     )
     add_custom_command(TARGET ${tgt} POST_BUILD
             # Runtime convention: <exe_dir>/plugins/<id>/config.json
