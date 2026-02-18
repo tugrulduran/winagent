@@ -29,6 +29,7 @@
         <div class="vital-bar-bg">
           <div id="cpu-fill" class="vital-bar-fill"></div>
         </div>
+        <div id="cpu-text" class="vital-value">0%</div>
       </div>
       <div class="vital-row">
         <div class="vital-icon">
@@ -48,11 +49,11 @@
         <div class="vital-bar-bg">
           <div id="ram-fill" class="vital-bar-fill"></div>
         </div>
+        <div id="ram-text" class="vital-value">0%</div>
       </div>
       <div class="vital-text-container">
-        <div id="cpu-text" class="vital-value">0%</div>
         <div id="audeze-battery" class="vital-value">0%</div>
-        <div id="ram-text" class="vital-value">0.0 GB</div>
+        <div id="client-battery" class="vital-value">0%</div>
       </div>
     </div>
     <div class="vitals-left-network">
@@ -364,7 +365,9 @@
         }
         const rect = el.getBoundingClientRect();
         const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
-        if (cy == null) return;
+        if (cy == null) {
+            return;
+        }
         let val = Math.max(0, Math.min(100, Math.round(((rect.bottom - cy) / rect.height) * 100)));
         el.querySelector('.fill').style.height = val + '%';
         el.querySelector('.vol-label').innerText = val;
@@ -382,7 +385,9 @@
     }
 
     window.addEventListener('pointermove', (e) => {
-        if (activePid !== null) triggerUpdate(e);
+        if (activePid !== null) {
+            triggerUpdate(e);
+        }
     });
     window.addEventListener('pointerup', () => {
         activePid = null;
@@ -420,6 +425,22 @@
     }
 
     setInterval(checkAgentStatus, 1000);
+
+    if ('getBattery' in navigator) {
+        navigator.getBattery().then(b => {
+            updateClientBattery({ percent: Math.round(b.level * 100), charging: b.charging });
+            b.addEventListener('chargingchange', () => {
+                updateClientBattery({ percent: Math.round(b.level * 100), charging: b.charging });
+            });
+            b.addEventListener('levelchange', () => {
+                updateClientBattery({ percent: Math.round(b.level * 100), charging: b.charging });
+            });
+        });
+    }
+    else {
+        console.warn('getBattery() not supported in this browser.');
+        document.getElementById('client-battery').style.display = 'none';
+    }
 
     function lockModuleForMSec(module, msec) {
         lockedModules[module] = setTimeout(() => {
@@ -490,6 +511,22 @@
     }
 
     connect();
+
+    function updateClientBattery(data) {
+        const el = document.getElementById('client-battery');
+        if(data.charging) {
+            el.innerHTML = `<i class="fa-solid fa-bolt"></i> ${data.percent}%`;
+        }
+        else {
+            el.innerHTML = `${data.percent}%`;
+        }
+        if (data.percent < 20) {
+            document.getElementById('client-battery').classList.add('critical');
+        }
+        else {
+            document.getElementById('client-battery').classList.remove('critical');
+        }
+    }
 
     function updateCPU(data) {
         if (!data || !data.ok) {
@@ -647,19 +684,19 @@
     }
 
     function updateAudioAudeze(data) {
+        const el = document.getElementById('audeze-battery');
         if (data.ok) {
+            el.style.display = 'block';
             if (data.battery <= 25) {
-                document.getElementById('audeze-battery').classList.add('critical');
+                el.classList.add('critical');
             }
             else {
-                document.getElementById('audeze-battery').classList.remove('critical');
+                el.classList.remove('critical');
             }
-            document.getElementById('audeze-battery').innerText = Math.round(data.battery) + '%';
+            el.innerHTML = `<i class="fa-regular fa-headphones"></i> ${Math.round(data.battery)}%`;
         }
         else {
-            if (data.battery === 0xFF) {
-                document.getElementById('audeze-battery').innerHTML = '<i class="fa-solid fa-times" style="color: #f00;"></i>';
-            }
+            el.style.display = 'none';
         }
     }
 

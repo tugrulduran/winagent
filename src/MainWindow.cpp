@@ -9,6 +9,8 @@
 #include <QFileInfo>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QTabWidget>
+#include <QLabel>
 
 #include "Logger.h"
 
@@ -30,7 +32,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     // Load external plugins from: <exe_dir>/plugins
     const QString pluginDir = QCoreApplication::applicationDirPath() + "/plugins";
-    plugins_.loadFromDir(pluginDir, nullptr);
+    plugins_.loadFromDir(pluginDir, plugins_.hostApi());
+    refreshPluginsTab();
 
     Logger::debug("[DEBUG] Creating servers...");
     m_DashboardServerThread = new QThread(this);
@@ -78,6 +81,11 @@ void MainWindow::stopDashboardServer() {
 }
 
 MainWindow::~MainWindow() {
+    if (tabPluginsInner) {
+        delete tabPluginsInner;
+        tabPluginsInner = nullptr;
+    }
+
     stopDashboardServer();
 
     if (m_DashboardServerThread->isRunning()) {
@@ -148,6 +156,14 @@ void MainWindow::setupUI() {
     l->setFont(btnFont);
     l->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
 
+    // =======================
+    // Plugins TAB
+    // =======================
+    tabPlugins = new QWidget();
+    tabWidget->addTab(tabPlugins, "Plugins");
+
+    tabPluginsInner = new QTabWidget(tabPlugins);
+    tabPluginsInner->setGeometry(0, 0, 1200, 600);
 
     // =======================
     // Connections
@@ -166,4 +182,35 @@ void MainWindow::clearLogs() {
     // Clears the debug log widget.
     txtDebug->clear();
     Logger::success(">>> Logs cleared.");
+}
+
+
+void MainWindow::refreshPluginsTab() {
+    if (!tabPluginsInner) return;
+
+    while (tabPluginsInner->count() > 0) {
+        QWidget* w = tabPluginsInner->widget(0);
+        tabPluginsInner->removeTab(0);
+        if (w) w->deleteLater();
+    }
+
+    const auto plugins = plugins_.list();
+    if (plugins.empty()) {
+        auto* lbl = new QLabel("No plugins loaded.", tabPluginsInner);
+        lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        tabPluginsInner->addTab(lbl, "(empty)");
+        return;
+    }
+
+    for (const auto& d : plugins) {
+        QWidget* w = plugins_.createWidget(d.id, tabPluginsInner);
+        if (!w) {
+            auto* lbl = new QLabel("This plugin does not provide a UI.", tabPluginsInner);
+            lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            w = lbl;
+        }
+        QString label = d.id;
+        if (!label.isEmpty()) label[0] = label[0].toUpper();
+        tabPluginsInner->addTab(w, label);
+    }
 }

@@ -88,6 +88,7 @@ set(WA_RUNTIME_DIR "$<TARGET_FILE_DIR:WinAgent>")
 
 # (1) Copy hidapi runtime files from project_root/lib -> next to exe
 # Not: .lib runtime için şart değil ama istediğin için onu da kopyalıyoruz.
+#[[
 file(GLOB HIDAPI_FILES CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/lib/hidapi*.dll"
         "${CMAKE_SOURCE_DIR}/lib/hidapi*.pdb"
@@ -98,6 +99,7 @@ if (HIDAPI_FILES)
 else()
     message(WARNING "No hidapi*.(dll|pdb|lib) found under ${CMAKE_SOURCE_DIR}/lib")
 endif()
+]]
 
 # (4) Copy dashboard/default -> next to exe (dashboard/default)
 wa_copy_dir_post_build(WinAgent

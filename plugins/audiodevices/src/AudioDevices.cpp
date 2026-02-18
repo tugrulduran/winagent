@@ -133,6 +133,10 @@ namespace audiodevices {
             PropVariantInit(&name);
             if (props) props->GetValue(PKEY_Device_FriendlyName, &name);
 
+            if (isIgnored(name.pwszVal)) {
+                continue;
+            }
+
             LPWSTR id = nullptr;
             device->GetId(&id);
 

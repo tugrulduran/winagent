@@ -6,6 +6,10 @@
 
 #include "src/MixerMonitor.h"
 
+// Optional Qt UI
+#include <QWidget>
+#include "src/VolumeMixerUi.h"
+
 using namespace volumemixer;
 
 static WaPluginInfo INFO{
@@ -17,8 +21,12 @@ static WaPluginInfo INFO{
 
 class VolumeMixerPlugin final : public BasePlugin {
 public:
-    explicit VolumeMixerPlugin(const char *configJsonUtf8) : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8) {
+    explicit VolumeMixerPlugin(void* hostCtx, const char *configJsonUtf8)
+        : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8),
+          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
     }
+
+    WaHostApi* hostApi() const { return hostApi_; }
 
 protected:
     bool onInit(QString &err) override {
@@ -81,12 +89,13 @@ protected:
 
 private:
     MixerMonitor mixer{};
+    WaHostApi* hostApi_ = nullptr;
 };
 
 // ---- C ABI exports ----
 // @formatter:off
 WA_EXPORT const WaPluginInfo * WA_CALL  wa_get_info()           { return &INFO; }
-WA_EXPORT void * WA_CALL    wa_create(void *, const char *cfg)  { return new VolumeMixerPlugin(cfg); }
+WA_EXPORT void * WA_CALL    wa_create(void *hostCtx, const char *cfg)  { return new VolumeMixerPlugin(hostCtx, cfg); }
 WA_EXPORT int32_t WA_CALL   wa_init(void *h)                    { return h ? ((VolumeMixerPlugin *) h)->init()     : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_start(void *h)                   { return h ? ((VolumeMixerPlugin *) h)->start()    : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_pause(void *h)                   { return h ? ((VolumeMixerPlugin *) h)->pause()    : WA_ERR_BAD_ARG; }
@@ -107,5 +116,12 @@ WA_EXPORT WaView WA_CALL    wa_read(void *h) {
     return h
         ? ((VolumeMixerPlugin *) h)->readView()
         : WaView{nullptr, 0};
+}
+
+// Optional UI export
+WA_EXPORT QWidget* WA_CALL wa_create_widget(void* pluginHandle, QWidget* parent) {
+    auto* p = static_cast<VolumeMixerPlugin*>(pluginHandle);
+    if (!p) return nullptr;
+    return new VolumeMixerUi(p->hostApi(), parent);
 }
 // @formatter:on

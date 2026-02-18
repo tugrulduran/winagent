@@ -1,25 +1,31 @@
 #pragma once
-#include <cstdint>
-#include <string>
-#include <QJsonObject>
 
-struct App {
-    uint8_t index;
-    std::wstring name;
-    std::wstring icon;
-    std::wstring path;
+#include <vector>
+
+#include <QJsonObject>
+#include <QString>
+
+// A single launcher entry, configured from plugins/launcher/config.json.
+struct LauncherApp {
+    int     index = 0;
+    QString name;
+    QString icon;
+    QString path;
+    int     zone = 1;
 };
 
-namespace launcher {
-    class Launcher {
-    public:
-        std::vector<App> getApps();
+class Launcher {
+public:
+    // Parse config and build the app list.
+    // Returns false only for hard failures (e.g. invalid shapes that we want to surface).
+    bool init(const QJsonObject& config, QString& err);
 
-        void init(QJsonObject config);
+    // Current state for dashboards / host.
+    QJsonObject snapshot() const;
 
-        void launch(uint8_t index);
+    // Execute an action by index.
+    void runAction(int index);
 
-    private:
-        std::vector<App> apps = {};
-    };
-}
+private:
+    std::vector<LauncherApp> apps_{};
+};
