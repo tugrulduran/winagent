@@ -46,13 +46,36 @@ enum WaRc : int32_t {
   #define WA_EXPORT extern "C"
 #endif
 
+// =========================
+// Optional Host API (plugin -> host)
+// =========================
+static constexpr uint32_t WA_HOST_API_VERSION = 1;
+
+enum WaPluginState : int32_t {
+    WA_STATE_MISSING = -1,
+    WA_STATE_STOPPED = 0,
+    WA_STATE_RUNNING = 1,
+    WA_STATE_PAUSED  = 2,
+    WA_STATE_ERROR   = 3,
+};
+
+struct WaHostApi {
+    uint32_t apiVersion;
+    void*    user;
+
+    int32_t (WA_CALL *plugin_get_state)(void* user, const char* pluginIdUtf8);
+    int32_t (WA_CALL *plugin_start)(void* user, const char* pluginIdUtf8);
+    int32_t (WA_CALL *plugin_stop)(void* user, const char* pluginIdUtf8);
+    int32_t (WA_CALL *plugin_restart)(void* user, const char* pluginIdUtf8);
+};
+
 // Required exports:
 WA_EXPORT const WaPluginInfo* WA_CALL wa_get_info();
 WA_EXPORT void*   WA_CALL wa_create(void* hostCtx, const char* configJsonUtf8);
 WA_EXPORT int32_t WA_CALL wa_init(void* handle);
 WA_EXPORT int32_t WA_CALL wa_start(void* handle);
-WA_EXPORT int32_t WA_CALL wa_pause(void* handle);   // optional; may be no-op
-WA_EXPORT int32_t WA_CALL wa_resume(void* handle);  // optional; may be no-op
+WA_EXPORT int32_t WA_CALL wa_pause(void* handle);
+WA_EXPORT int32_t WA_CALL wa_resume(void* handle);
 WA_EXPORT int32_t WA_CALL wa_stop(void* handle);
 WA_EXPORT void    WA_CALL wa_destroy(void* handle);
 

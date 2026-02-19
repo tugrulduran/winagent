@@ -6,6 +6,10 @@
 
 #include "src/CpuSampler.h"
 
+// Optional Qt UI
+#include <QWidget>
+#include "src/BasicCpuUi.h"
+
 using namespace basiccpu;
 
 static WaPluginInfo INFO{
@@ -17,8 +21,12 @@ static WaPluginInfo INFO{
 
 class BasicCpuPlugin final : public BasePlugin {
 public:
-    explicit BasicCpuPlugin(const char *configJsonUtf8) : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8) {
+    explicit BasicCpuPlugin(void* hostCtx, const char *configJsonUtf8)
+        : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8),
+          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
     }
+
+    WaHostApi* hostApi() const { return hostApi_; }
 
 protected:
     bool onInit(QString &err) override {
@@ -41,13 +49,14 @@ protected:
     }
 
 private:
+    WaHostApi* hostApi_ = nullptr;
     CpuSampler sampler_{};
 };
 
 // ---- C ABI exports ----
 // @formatter:off
 WA_EXPORT const WaPluginInfo * WA_CALL  wa_get_info()           { return &INFO; }
-WA_EXPORT void * WA_CALL    wa_create(void *, const char *cfg)  { return new BasicCpuPlugin(cfg); }
+WA_EXPORT void * WA_CALL    wa_create(void *hostCtx, const char *cfg)  { return new BasicCpuPlugin(hostCtx, cfg); }
 WA_EXPORT int32_t WA_CALL   wa_init(void *h)                    { return h ? ((BasicCpuPlugin *) h)->init()     : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_start(void *h)                   { return h ? ((BasicCpuPlugin *) h)->start()    : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_pause(void *h)                   { return h ? ((BasicCpuPlugin *) h)->pause()    : WA_ERR_BAD_ARG; }
@@ -68,5 +77,12 @@ WA_EXPORT WaView WA_CALL    wa_read(void *h) {
     return h
         ? ((BasicCpuPlugin *) h)->readView()
         : WaView{nullptr, 0};
+}
+
+// Optional UI export
+WA_EXPORT QWidget* WA_CALL wa_create_widget(void* pluginHandle, QWidget* parent) {
+    auto* p = static_cast<BasicCpuPlugin*>(pluginHandle);
+    if (!p) return nullptr;
+    return new BasicCpuUi(p->hostApi(), parent);
 }
 // @formatter:on

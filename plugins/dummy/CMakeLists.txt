@@ -1,6 +1,6 @@
 # plugins/memory/CMakeLists.txt
 set(PLUGIN_NAME "dummy")
-set(tgt WinAgentPlugin_dummy)
+set(tgt dummy)
 
 add_library(${tgt} SHARED ${PROJECT_SOURCE_DIR}/src/BasePlugin.cpp Plugin.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/DummySampler.cpp
@@ -13,8 +13,8 @@ target_link_libraries(${tgt} PRIVATE Qt6::Core)
 
 if (TARGET WinAgent)
     set_target_properties(${tgt} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
-            LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins"
+            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins/${PLUGIN_NAME}"
+            LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:WinAgent>/plugins/${PLUGIN_NAME}"
     )
     add_custom_command(TARGET ${tgt} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:WinAgent>/plugins"

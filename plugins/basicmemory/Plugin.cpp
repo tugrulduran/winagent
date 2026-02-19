@@ -1,10 +1,13 @@
 #include "BasePlugin.h"
 
-#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 
 #include "src/RamSampler.h"
+
+// Optional Qt UI
+#include <QWidget>
+#include "src/BasicMemoryUi.h"
 
 using namespace basicmemory;
 
@@ -17,11 +20,15 @@ static WaPluginInfo INFO{
 
 class BasicMemoryPlugin final : public BasePlugin {
 public:
-    explicit BasicMemoryPlugin(const char *configJsonUtf8) : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8) {
+    explicit BasicMemoryPlugin(void* hostCtx, const char* configJsonUtf8)
+        : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8),
+          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
     }
 
+    WaHostApi* hostApi() const { return hostApi_; }
+
 protected:
-    bool onInit(QString &err) override {
+    bool onInit(QString& err) override {
         return true;
     }
 
@@ -29,8 +36,8 @@ protected:
     }
 
     QJsonObject onTick() override {
-        double availableMemory = sampler_.getAvailableMemory() / 1024.0 / 1024.0 / 1024.0;
-        double totalMemory = sampler_.getTotalMemory() / 1024.0 / 1024.0 / 1024.0;
+        const double availableMemory = sampler_.getAvailableMemory() / 1024.0 / 1024.0 / 1024.0;
+        const double totalMemory = sampler_.getTotalMemory() / 1024.0 / 1024.0 / 1024.0;
 
         QJsonObject snap;
         snap.insert("ok", true);
@@ -41,13 +48,14 @@ protected:
     }
 
 private:
+    WaHostApi* hostApi_ = nullptr;
     RamSampler sampler_{};
 };
 
 // ---- C ABI exports ----
 // @formatter:off
 WA_EXPORT const WaPluginInfo * WA_CALL  wa_get_info()           { return &INFO; }
-WA_EXPORT void * WA_CALL    wa_create(void *, const char *cfg)  { return new BasicMemoryPlugin(cfg); }
+WA_EXPORT void * WA_CALL    wa_create(void *hostCtx, const char *cfg)  { return new BasicMemoryPlugin(hostCtx, cfg); }
 WA_EXPORT int32_t WA_CALL   wa_init(void *h)                    { return h ? ((BasicMemoryPlugin *) h)->init()     : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_start(void *h)                   { return h ? ((BasicMemoryPlugin *) h)->start()    : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_pause(void *h)                   { return h ? ((BasicMemoryPlugin *) h)->pause()    : WA_ERR_BAD_ARG; }
@@ -68,5 +76,12 @@ WA_EXPORT WaView WA_CALL    wa_read(void *h) {
     return h
         ? ((BasicMemoryPlugin *) h)->readView()
         : WaView{nullptr, 0};
+}
+
+// Optional UI export
+WA_EXPORT QWidget* WA_CALL wa_create_widget(void* pluginHandle, QWidget* parent) {
+    auto* p = static_cast<BasicMemoryPlugin*>(pluginHandle);
+    if (!p) return nullptr;
+    return new BasicMemoryUi(p->hostApi(), parent);
 }
 // @formatter:on

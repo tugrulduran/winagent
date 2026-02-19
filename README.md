@@ -456,8 +456,8 @@ Planned improvements:
 
 - [ ] 🔐 Basic auth / token for HTTPS + WSS
 - [ ] 👁️ Live watching plugin outputs in the UI
-- [ ] ⚙️ Per-plugin config in the UI (edit JSON safely)
-- [ ] 🔄 Live controls: start / stop plugins + apply config without restart
+- [x] ⚙️ ~~Per-plugin config in the UI (edit JSON safely)~~
+- [x] 🔄 ~~Live controls: start / stop plugins + apply config without restart~~
 - [ ] 🧩 Plugin repository (browse + install plugins from a central place)
 - [ ] 🖥️ Multiple dashboards (choose which one to serve)
 - [ ] 🧯 Plugin watchdog (plugin auto reset on crash/freeze)

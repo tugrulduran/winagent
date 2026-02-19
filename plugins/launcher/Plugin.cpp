@@ -1,99 +1,118 @@
-#include <qcoreevent.h>
-
 #include "BasePlugin.h"
 
-#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 
 #include "src/Launcher.h"
 
-using namespace launcher;
+// Optional Qt UI
+#include <QWidget>
+#include "src/LauncherUi.h"
 
 static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "launcher",
-    "Windows App Launcher",
-    60000
+    "Launcher",
+    1000
 };
 
 class LauncherPlugin final : public BasePlugin {
 public:
-    explicit LauncherPlugin(const char *configJsonUtf8) : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8) {
+    explicit LauncherPlugin(void* hostCtx, const char* cfg)
+        : BasePlugin(INFO.defaultIntervalMs, cfg),
+          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
     }
 
-protected:
-    bool onInit(QString &err) override {
-        launcher_.init(config());
+    WaHostApi* hostApi() const { return hostApi_; }
 
-        return true;
+protected:
+    bool onInit(QString& err) override {
+        return launcher_.init(config(), err);
     }
 
     void onStop() override {
     }
 
     QJsonObject onTick() override {
-        std::vector<App> data = launcher_.getApps();
-
-        QJsonArray apps = {};
-        for (auto &app: data) {
-            apps.append(QJsonObject{
-                {"index", app.index},
-                {"name", QString::fromStdWString(app.name)},
-                {"icon", QString::fromStdWString(app.icon)}
-            });
-        }
-
-        QJsonObject snap;
-        snap.insert("ok", true);
-        snap.insert("apps", apps);
-
-        return snap;
+        return launcher_.snapshot();
     }
 
-
-    QJsonObject onRequest(const QJsonObject &req) override {
+    QJsonObject onRequest(const QJsonObject& req) override {
+        // Expected shape: { "cmd": "...", ... }
         const QString cmd = req.value("cmd").toString();
 
-        if (cmd.isEmpty()) {
-            return QJsonObject{{"ok", false}, {"error", "missing_cmd"}};
-        }
-
-        if (cmd == "launch") {
-            launcher_.launch(req.value("index").toInt());
+        if (cmd == "runAction") {
+            const int id = req.value("id").toInt(-1);
+            if (id >= 0) launcher_.runAction(id);
             return QJsonObject{{"ok", true}};
         }
 
-        return QJsonObject{{"ok", false}, {"error", "unknown_cmd"}, {"cmd", cmd}};
+        // Backward/forward compatible alias used by some dashboards:
+        if (cmd == "launch") {
+            const int index = req.value("index").toInt(-1);
+            if (index >= 0) launcher_.runAction(index);
+            return QJsonObject{{"ok", true}};
+        }
+
+        return QJsonObject{{"ok", false}, {"error", "unknown cmd"}};
     }
 
 private:
-    Launcher launcher_{};
+    WaHostApi* hostApi_ = nullptr;
+    Launcher launcher_;
 };
 
-// ---- C ABI exports ----
-// @formatter:off
-WA_EXPORT const WaPluginInfo * WA_CALL  wa_get_info()           { return &INFO; }
-WA_EXPORT void * WA_CALL    wa_create(void *, const char *cfg)  { return new LauncherPlugin(cfg); }
-WA_EXPORT int32_t WA_CALL   wa_init(void *h)                    { return h ? ((LauncherPlugin *) h)->init()     : WA_ERR_BAD_ARG; }
-WA_EXPORT int32_t WA_CALL   wa_start(void *h)                   { return h ? ((LauncherPlugin *) h)->start()    : WA_ERR_BAD_ARG; }
-WA_EXPORT int32_t WA_CALL   wa_pause(void *h)                   { return h ? ((LauncherPlugin *) h)->pause()    : WA_ERR_BAD_ARG; }
-WA_EXPORT int32_t WA_CALL   wa_resume(void *h)                  { return h ? ((LauncherPlugin *) h)->resume()   : WA_ERR_BAD_ARG; }
-WA_EXPORT int32_t WA_CALL   wa_stop(void *h)                    { return h ? ((LauncherPlugin *) h)->stop()     : WA_ERR_BAD_ARG; }
-WA_EXPORT void WA_CALL      wa_destroy(void *h) {
-    if (!h) return;
-    auto *p = (LauncherPlugin *) h;
-    p->stop();
-    delete p;
+// Required exports
+WA_EXPORT const WaPluginInfo* WA_CALL wa_get_info() {
+    return &INFO;
 }
-WA_EXPORT WaView WA_CALL    wa_request(void *h, const char *reqJsonUtf8) {
-    return h
-        ? ((LauncherPlugin *) h)->requestView(reqJsonUtf8)
-        : WaView{nullptr, 0};
+
+WA_EXPORT void* WA_CALL wa_create(void* hostCtx, const char* configJsonUtf8) {
+    return new LauncherPlugin(hostCtx, configJsonUtf8);
 }
-WA_EXPORT WaView WA_CALL    wa_read(void *h) {
-    return h
-        ? ((LauncherPlugin *) h)->readView()
-        : WaView{nullptr, 0};
+
+WA_EXPORT int32_t WA_CALL wa_init(void* handle) {
+    if (!handle) return WA_ERR_BAD_ARG;
+    return static_cast<LauncherPlugin*>(handle)->init();
 }
-// @formatter:on
+
+WA_EXPORT int32_t WA_CALL wa_start(void* handle) {
+    if (!handle) return WA_ERR_BAD_ARG;
+    return static_cast<LauncherPlugin*>(handle)->start();
+}
+
+WA_EXPORT int32_t WA_CALL wa_pause(void* handle) {
+    if (!handle) return WA_ERR_BAD_ARG;
+    return static_cast<LauncherPlugin*>(handle)->pause();
+}
+
+WA_EXPORT int32_t WA_CALL wa_resume(void* handle) {
+    if (!handle) return WA_ERR_BAD_ARG;
+    return static_cast<LauncherPlugin*>(handle)->resume();
+}
+
+WA_EXPORT int32_t WA_CALL wa_stop(void* handle) {
+    if (!handle) return WA_ERR_BAD_ARG;
+    return static_cast<LauncherPlugin*>(handle)->stop();
+}
+
+WA_EXPORT void WA_CALL wa_destroy(void* handle) {
+    delete static_cast<LauncherPlugin*>(handle);
+}
+
+WA_EXPORT WaView WA_CALL wa_read(void* handle) {
+    if (!handle) return {nullptr, 0};
+    return static_cast<LauncherPlugin*>(handle)->readView();
+}
+
+WA_EXPORT WaView WA_CALL wa_request(void* handle, const char* reqJsonUtf8) {
+    if (!handle) return {nullptr, 0};
+    return static_cast<LauncherPlugin*>(handle)->requestView(reqJsonUtf8);
+}
+
+// Optional UI export
+WA_EXPORT QWidget* WA_CALL wa_create_widget(void* pluginHandle, QWidget* parent) {
+    auto* p = static_cast<LauncherPlugin*>(pluginHandle);
+    if (!p) return nullptr;
+    return new LauncherUi(p->hostApi(), parent);
+}

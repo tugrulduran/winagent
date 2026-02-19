@@ -1,734 +1,143 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>WinAgent v1.4 | Pro Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/default.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WinAgent v1.4 | Pro Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&family=Michroma&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/default.css">
 </head>
 <body>
-<div class="system-vitals">
-  <div class="vitals-left">
-    <div class="vitals-left-system">
-      <div class="vital-row">
-        <div class="vital-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="4" y="4" width="16" height="16" rx="2" />
-            <rect x="9" y="9" width="6" height="6" />
-            <path d="M15 2v2" />
-            <path d="M15 20v2" />
-            <path d="M2 15h2" />
-            <path d="M2 9h2" />
-            <path d="M20 15h2" />
-            <path d="M20 9h2" />
-            <path d="M9 2v2" />
-            <path d="M9 20v2" />
-          </svg>
+
+<div class="wrapper">
+    <div class="top-bar">
+        <div class="system-info">
+            <div class="system-vitals">
+                <div id="cpu-container">
+                    <div class="cpu-icon"><i class="fa-solid fa-microchip"></i></div>
+                    <div class="cpu-bar-container">
+                        <div id="cpu-bar"></div>
+                    </div>
+                    <div id="cpu-value"></div>
+                </div>
+                <div id="ram-container">
+                    <div class="ram-icon"><i class="fa-solid fa-memory"></i></div>
+                    <div class="ram-bar-container">
+                        <div id="ram-bar"></div>
+                    </div>
+                    <div id="ram-value"></div>
+                </div>
+                <div class="battery">
+                    <div id="audeze-battery-container">
+                        <div class="audeze-icon"><i class="fa-regular fa-headphones"></i></div>
+                        <div id="audeze-text"></div>
+                    </div>
+                    <div id="local-battery">
+                        <div id="level-icon"><i class="fa-regular fa-battery-quarter fa-rotate-90"></i></div>
+                        <div id="charging-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <div id="local-battery-text"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="network-vitals">
+                <div class="net-speed-container">
+                    <div id="net-dl-speed"></div>
+                    <div class="net-dl-icon"><i class="fa-solid fa-caret-down"></i></div>
+                </div>
+                <div class="net-speed-container">
+                    <div id="net-ul-speed"></div>
+                    <div class="net-ul-icon"><i class="fa-solid fa-caret-up"></i></div>
+                </div>
+                <div class="net-interface-container">
+                    <div id="net-interface-icon"><i class="fa-solid fa-network-wired"></i></div>
+                    <div id="net-interface-text"></div>
+                </div>
+            </div>
         </div>
-        <div class="vital-bar-bg">
-          <div id="cpu-fill" class="vital-bar-fill"></div>
+        <div class="timers">
+            <div class="time-container">
+                <div id="main-clock"></div>
+                <div id="main-calendar"></div>
+            </div>
+            <div class="stopwatch-container">
+                <div id="stopwatch-value">00:00:00.00</div>
+                <div class="stopwatch-controls">
+                    <div id="stopwatch-reset"><i class="fa-solid fa-rotate-left"></i></div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="vital-row">
-        <div class="vital-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M6 19v-3" />
-            <path d="M10 19v-3" />
-            <path d="M14 19v-3" />
-            <path d="M18 19v-3" />
-            <path d="M8 11V9" />
-            <path d="M16 11V9" />
-            <path d="M12 11V9" />
-            <path d="M2 15h20" />
-            <path d="M2 7h20" />
-            <path d="M2 5v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-          </svg>
+        <div id="launcher-zone-1"></div>
+    </div>
+    <div class="audio-container">
+        <div id="mixer-container"></div>
+        <div id="audio-devices-container"></div>
+    </div>
+    <div class="media-container">
+        <div class="status-panel">
+            <div id="status-wakelock" class="badge">WAKE LOCK: OFF</div>
+            <div id="status-live" class="badge active">AGENT: LIVE</div>
         </div>
-        <div class="vital-bar-bg">
-          <div id="ram-fill" class="vital-bar-fill"></div>
+        <div class="media-hud-container">
+            <div id="media-hud" class="media-hud">
+                <div class="controls">
+                    <div class="nav-btn small" id="btn-media-prev"><i class="fa-solid fa-backward-step"></i></div>
+                    <div class="nav-btn seek" id="btn-media-seek-back-fast">-30</div>
+                    <div class="nav-btn seek" id="btn-media-seek-back">
+                        <svg viewBox="0 0 24 24" width="35">
+                            <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" fill="currentColor" />
+                        </svg>
+                    </div>
+                    <div id="btn-media-play-pause">
+                        <span id="media-source">SOURCE</span>
+                        <span id="media-title">NOTHING PLAYING</span>
+                        <span id="media-status-text">IDLE</span>
+                    </div>
+                    <div class="nav-btn seek" id="btn-media-seek-forward">
+                        <svg viewBox="0 0 24 24" width="35">
+                            <path d="M11.5 8c2.65 0 5.05 1 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z" fill="currentColor" />
+                        </svg>
+                    </div>
+                    <div class="nav-btn seek" id="btn-media-seek-forward-fast">+30</div>
+                    <div class="nav-btn small" id="btn-media-next">
+                        <i class="fa-solid fa-forward-step"></i>
+                    </div>
+                </div>
+                <div class="media-time">
+                    <span id="media-time-current">00:00</span>
+                    <span id="media-time-duration">00:00</span>
+                </div>
+                <div class="progress-container">
+                    <div id="media-progress-fill"></div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="vital-text-container">
-        <div id="cpu-text" class="vital-value">0%</div>
-        <div id="audeze-battery" class="vital-value">0%</div>
-        <div id="ram-text" class="vital-value">0.0 GB</div>
-      </div>
+        <div class="client-controls">
+            <div id="btn-reload"><i class="fa-solid fa-rotate-right"></i></div>
+            <div id="btn-wakelock"><i class="fa-regular fa-clock"></i></div>
+            <div id="btn-fullscreen"><i class="fa-solid fa-expand"></i></div>
+        </div>
     </div>
-    <div class="vitals-left-network">
-      <div class="net-row"><span id="net-in" class="net-value">0.0 MB/s</span><span style="color:var(--net)">▼</span>
-      </div>
-      <div class="net-row"><span id="net-out" class="net-value">0.0 MB/s</span><span style="color:#00a2ff">▲</span>
-      </div>
-      <div class="net-row"><span id="net-type" class="net-value"></span></div>
-    </div>
-  </div>
-
-  <div class="vitals-middle">
-    <div class="clock-container">
-      <div id="main-clock">00:00:00</div>
-      <div id="main-date">01/01/2024 MONDAY</div>
-    </div>
-    <div class="stopwatch-container">
-      <div id="sw-display" onclick="toggleStopwatch()">00:00:00.00</div>
-      <div class="sw-controls">
-        <button class="sw-btn" id="sw-reset" onclick="resetStopwatch()">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" fill="currentColor" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div id="launcher-zone-1"></div>
-</div>
-
-<div id="mixer" class="mixer-container"></div>
-<div id="device-list"></div>
-
-<div id="media-hud" class="media-hud">
-  <div class="media-controls-row">
-    <div class="nav-btn small" onclick="callRequest('media', { cmd: 'prev' })">«</div>
-    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-30)">-30</div>
-    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(-10)">
-      <svg viewBox="0 0 24 24" width="35">
-        <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" fill="currentColor" />
-      </svg>
-    </div>
-    <div class="media-main-btn" onclick="callRequest('media', { cmd: 'playpause' })">
-      <span id="media-source">SOURCE</span>
-      <span id="media-title">NOTHING PLAYING</span>
-      <span id="play-status-text">IDLE</span>
-    </div>
-    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(10)">
-      <svg viewBox="0 0 24 24" width="35">
-        <path d="M11.5 8c2.65 0 5.05 1 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z" fill="currentColor" />
-      </svg>
-    </div>
-    <div class="nav-btn seek" onclick="jumpMediaToRelativeTime(30)">+30</div>
-    <div class="nav-btn small" onclick="callRequest('media', { cmd: 'next' })">»</div>
-  </div>
-  <div class="media-progress-bg">
-    <div id="media-progress-fill"></div>
-  </div>
-  <div class="media-time"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
-</div>
-
-<div class="status-panel">
-  <div id="status-wakelock" class="badge">WAKE LOCK: OFF</div>
-  <div id="status-live" class="badge active">AGENT: LIVE</div>
-</div>
-
-<div class="controls">
-  <div class="btn-action" onclick="window.location.reload()">
-    <svg viewBox="0 0 24 24">
-      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-    </svg>
-  </div>
-  <div id="btn-lock" class="btn-action" onclick="toggleEnhancedWakeLock()">
-    <svg viewBox="0 0 24 24">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
-    </svg>
-  </div>
-  <div id="btn-fs" class="btn-action" onclick="toggleFS()">
-    <svg viewBox="0 0 24 24">
-      <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-    </svg>
-  </div>
 </div>
 
 <script>
-    let activePid = null, isLocked = false, wakeLockObj = null, audioLocked = -1;
-    let swStartTime = 0, swElapsedTime = 0, swInterval = null, swIsRunning = false;
+    let activePid = null;
+    let isLocked = false;
+    let wakeLockObj = null;
+    let audioLocked = -1;
+    let swStartTime = 0;
+    let swElapsedTime = 0;
+    let swInterval = null;
+    let swIsRunning = false;
 
-    const MediaCommands = {
-        PlayPause: 0xC1,
-        Next: 0xC4,
-        Previous: 0xC5,
-        Jump: 0xC6,
-        SeekForward: 0xC7,
-        SeekBackward: 0xC8
-    };
-
-    // Global Medya Durumu
     window.currentIsPlaying = false;
     window.currentIsMuted = false;
     window.currentTime = 0;
     window.totalTime = 0;
-
-    const PLAY_ICON = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>';
-    const PAUSE_ICON = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>';
-
-    function formatTime(s) {
-        if (!s || s <= 0) {
-            return '00:00';
-        }
-        const hrs = Math.floor(s / 3600), mins = Math.floor((s % 3600) / 60), secs = Math.floor(s % 60);
-        const ds = secs < 10 ? '0' + secs : secs;
-        return hrs > 0 ? `${hrs}:${mins < 10 ? '0' + mins : mins}:${ds}` : `${mins}:${ds}`;
-    }
-
-    function toggleStopwatch() {
-        const display = document.getElementById('sw-display');
-        if (!swIsRunning) {
-            swIsRunning = true;
-            swStartTime = Date.now() - swElapsedTime;
-            swInterval = setInterval(() => {
-                swElapsedTime = Date.now() - swStartTime;
-                let ms = Math.floor((swElapsedTime % 1000) / 10), ts = Math.floor(swElapsedTime / 1000);
-                let s = ts % 60, m = Math.floor((ts / 60) % 60), h = Math.floor(ts / 3600);
-                const pad = (n) => String(n).padStart(2, '0');
-                display.innerText = `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms)}`;
-            }, 10);
-            display.classList.add('active-color');
-        }
-        else {
-            swIsRunning = false;
-            clearInterval(swInterval);
-        }
-        document.getElementById('sw-reset').style.display = 'flex';
-    }
-
-    function resetStopwatch() {
-        swIsRunning = false;
-        clearInterval(swInterval);
-        swElapsedTime = 0;
-        const display = document.getElementById('sw-display');
-        display.innerText = '00:00:00.00';
-        display.classList.remove('active-color');
-        document.getElementById('sw-reset').style.display = 'none';
-    }
-
-    async function toggleEnhancedWakeLock() {
-        const btn = document.getElementById('btn-lock'), badge = document.getElementById('status-wakelock');
-        if (!isLocked) {
-            isLocked = true;
-            btn.classList.add('active');
-            badge.classList.add('active');
-            badge.innerText = 'WAKE LOCK: ACTIVE';
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLockObj = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-        else {
-            isLocked = false;
-            btn.classList.remove('active');
-            badge.classList.remove('active');
-            badge.innerText = 'WAKE LOCK: OFF';
-            if (wakeLockObj) {
-                await wakeLockObj.release();
-                wakeLockObj = null;
-            }
-        }
-    }
-
-    function toggleFS() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        }
-        else {
-            document.exitFullscreen();
-        }
-    }
-
-    function updateClock() {
-        const now = new Date();
-        document.getElementById('main-clock').innerText = now.toLocaleTimeString('tr-TR', { hour12: false });
-        const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-        document.getElementById('main-date').innerText = `${now.toLocaleDateString('tr-TR')} ${days[now.getDay()]}`;
-    }
-
-    function jumpMediaToTime(time) {
-        callRequest('media', { cmd: 'jump', time });
-        window.currentTime = time;
-    }
-
-    function jumpMediaToRelativeTime(time) {
-        const newTime = window.currentTime + time;
-        if (newTime < 0) {
-            jumpMediaToTime(0);
-        }
-        else if (newTime > window.totalTime) {
-            jumpMediaToTime(window.totalTime);
-        }
-        else {
-            jumpMediaToTime(newTime);
-        }
-    }
-
-    setInterval(updateClock, 1000);
-
-    function getIconById(id) {
-        switch (id) {
-            case 1:
-                return { type: 'solid', icon: 'calculator' };
-            case 2:
-                return { type: 'regular', icon: 'clipboard' };
-            case 3:
-                return { type: 'brands', icon: 'chrome' };
-            case 4:
-                return { type: 'brands', icon: 'steam' };
-            case 5:
-                return { type: 'solid', icon: 'terminal' };
-            default:
-                return { type: 'solid', icon: 'question' };
-        }
-    }
-
-    function getIconByObj(action) {
-        if (action.icon) {
-            if (action.icon.includes('fa-brands')) {
-                return { type: 'brands', icon: action.icon.replace('fa-brands', '').trim().replace('fa-', '') };
-            }
-            else if (action.icon.includes('fa-regular')) {
-                return { type: 'regular', icon: action.icon.replace('fa-regular', '').trim().replace('fa-', '') };
-            }
-            else if (action.icon.includes('fa-solid')) {
-                return { type: 'solid', icon: action.icon.replace('fa-solid', '').trim().replace('fa-', '') };
-            }
-            else if (action.icon.trim().startsWith('fa-')) {
-                return { type: 'solid', icon: action.icon.trim().replace('fa-', '') };
-            }
-            else if (action.icon.length > 0) {
-                return { type: 'solid', icon: action.icon };
-            }
-            else {
-                return { type: 'solid', icon: 'question' };
-            }
-        }
-        else {
-            return { type: 'solid', icon: 'question' };
-        }
-    }
-
-    function getIconByProcessName(name) {
-        switch (name) {
-            case 'chrome.exe':
-                return { type: 'brands', icon: 'chrome' };
-            case 'steam.exe':
-                return { type: 'brands', icon: 'steam' };
-            default:
-                return { type: 'solid', icon: 'question' };
-        }
-    }
-
-    function getIconByAppTitle(title) {
-        switch (title) {
-            case 'MASTER VOLUME':
-                return { type: 'solid', icon: 'volume-high' };
-            case 'Google Chrome':
-                return { type: 'brands', icon: 'chrome' };
-            case 'Steam':
-                return { type: 'brands', icon: 'steam' };
-            case 'Battle.net':
-                return { type: 'brands', icon: 'battle-net' };
-            case 'Opera Internet Browser':
-                return { type: 'brands', icon: 'opera' };
-            default:
-                return { type: 'solid', icon: 'question' };
-        }
-    }
-
-    function getMediaSourceByTypeId(id) {
-        switch (id) {
-            case 0:
-                return 'NO MEDIA';
-            case 1:
-                return 'GENERIC';
-            case 2:
-                return 'YOUTUBE';
-            case 3:
-                return 'TWITCH';
-            case 4:
-                return 'KICK';
-            case 5:
-                return 'MEDIA PLAYER';
-            case 6:
-                return 'YOUTUBE MUSIC';
-            case 7:
-                return 'SPOTIFY';
-            default:
-                return 'UNKNOWN';
-        }
-    }
-
-    function triggerUpdate(e) {
-        const el = document.getElementById(`pid-${activePid}`);
-        if (!el) {
-            return;
-        }
-        const rect = el.getBoundingClientRect();
-        const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
-        if (cy == null) return;
-        let val = Math.max(0, Math.min(100, Math.round(((rect.bottom - cy) / rect.height) * 100)));
-        el.querySelector('.fill').style.height = val + '%';
-        el.querySelector('.vol-label').innerText = val;
-
-        audioLocked = activePid;
-        setTimeout(() => {
-            audioLocked = -1;
-        }, 2000);
-
-        callRequest('volumemixer', {
-            cmd: el.dataset.type === '0' ? 'setMasterVolume' : 'setAppVolume',
-            pid: activePid,
-            volume: val / 100
-        });
-    }
-
-    window.addEventListener('pointermove', (e) => {
-        if (activePid !== null) triggerUpdate(e);
-    });
-    window.addEventListener('pointerup', () => {
-        activePid = null;
-    });
-    window.addEventListener('pointercancel', () => {
-        activePid = null;
-    });
 </script>
+<script src="local-actions.js"></script>
+<script src="data-handler.js"></script>
 <script src="https://kit.fontawesome.com/9b70f3b7e0.js" crossorigin="anonymous"></script>
-<script>
-    let ws;
-    const wsUrl = `wss://${window.location.hostname}:3004`;
-    const reconnectInterval = 1000;
-    let lastDataReceived = Date.now();
-
-    const lockedModules = {};
-
-    function dataReceived() {
-        lastDataReceived = Date.now();
-    }
-
-    function checkAgentStatus() {
-        const timeDiff = (Date.now() - lastDataReceived) / 1000;
-        const badge = document.getElementById('status-live');
-        if (timeDiff < 5) {
-            badge.classList.remove('dead');
-            badge.classList.add('active');
-            badge.innerText = 'AGENT: LIVE';
-        }
-        else {
-            badge.classList.remove('active');
-            badge.classList.add('dead');
-            badge.innerText = 'AGENT: DEAD';
-        }
-    }
-
-    setInterval(checkAgentStatus, 1000);
-
-    function lockModuleForMSec(module, msec) {
-        lockedModules[module] = setTimeout(() => {
-            delete lockedModules[module];
-        }, msec);
-    }
-
-    function isModuleLocked(module) {
-        return lockedModules[module] !== undefined;
-    }
-
-    function connect() {
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            console.log('Connected to server');
-            // ws.send(JSON.stringify({ cmd: "runAction", payload: { action: 1} }));
-        };
-        ws.onmessage = (e) => {
-            // console.log('RAW DATA:', e.data);
-            dataReceived();
-            const data = JSON.parse(e.data);
-            const event = data.event;
-            const payload = data.payload;
-            if (event === 'update') {
-                console.log('UPDATE EVENT:', payload);
-                if ('basiccpu' in payload.modules) {
-                    updateCPU(payload.modules.basiccpu);
-                }
-                if ('basicmemory' in payload.modules) {
-                    updateRAM(payload.modules.basicmemory);
-                }
-                if ('basicnetwork' in payload.modules) {
-                    updateNet(payload.modules.basicnetwork);
-                }
-                if ('volumemixer' in payload.modules) {
-                    updateAudioApps(payload.modules.volumemixer);
-                }
-                if ('audiodevices' in payload.modules) {
-                    if (isModuleLocked('audiodevices')) {
-                        return;
-                    }
-                    updateAudioDevices(payload.modules.audiodevices);
-                }
-                if ('audezemaxwell' in payload.modules) {
-                    updateAudioAudeze(payload.modules.audezemaxwell);
-                }
-                if ('media' in payload.modules) {
-                    updateMedia(payload.modules.media);
-                }
-                if ('launcher' in payload.modules) {
-                    updateLauncherActions(payload.modules.launcher);
-                }
-            }
-        };
-        ws.onclose = (e) => {
-            console.log(`Socket closed. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
-            // Bağlantı koptuğunda 1 saniye sonra tekrar connect() çağır
-            setTimeout(() => {
-                connect();
-            }, reconnectInterval);
-        };
-
-        ws.onerror = (err) => {
-            console.error('Socket encountered error: ', err.message, 'Closing socket');
-            ws.close();
-        };
-    }
-
-    connect();
-
-    function updateCPU(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-        document.getElementById('cpu-fill').style.width = data.load + '%';
-        document.getElementById('cpu-text').innerText = Math.round(data.load) + '%';
-    }
-
-    function updateRAM(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-        const used = data.total - data.available;
-        const percent = Math.round(used / data.total * 100);
-        document.getElementById('ram-fill').style.width = percent + '%';
-        document.getElementById('ram-text').innerText = percent + '%';
-        if (percent > 80) {
-            document.getElementById('ram-text').classList.add('critical');
-        }
-        else {
-            document.getElementById('ram-text').classList.remove('critical');
-        }
-    }
-
-    function updateNet(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-        const inKB = data.interfaces.map(iface => iface.rxSpeed).reduce((a, b) => a + b, 0);
-        const outKB = data.interfaces.map(iface => iface.txSpeed).reduce((a, b) => a + b, 0);
-        let inVal = Math.round(inKB) + ' KB/s';
-        let outVal = Math.round(outKB) + ' KB/s';
-        if (inKB > 1000) {
-            const inMB = inKB / 1024;
-            inVal = inMB.toFixed(1) + ' MB/s';
-        }
-        if (outKB > 1000) {
-            const outMB = outKB / 1024;
-            outVal = outMB.toFixed(1) + ' MB/s';
-        }
-
-        document.getElementById('net-in').innerText = inVal;
-        document.getElementById('net-out').innerText = outVal;
-
-        const bestInterface = data.interfaces.reduce((best, x) => (x.rxSpeed + x.txSpeed > best.rxSpeed + best.txSpeed ? x : best));
-        if (!bestInterface) {
-            return;
-        }
-        let netType = 'unknown';
-        if (['wifi', 'wi-fi', 'wlan', 'wireless'].some(k => bestInterface.name.toLowerCase().includes(k))) {
-            netType = 'Wi-Fi';
-        }
-        else if (['ethernet', 'eth', 'wired'].some(k => bestInterface.name.toLowerCase().includes(k))) {
-            netType = 'Ethernet';
-        }
-        if (netType === 'unknown') {
-            document.getElementById('net-type').innerText = bestInterface.name;
-        }
-        else if ((inKB + outKB) > 10) {
-            document.getElementById('net-type').innerText = netType;
-        }
-    }
-
-    function updateAudioApps(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-        // [...document.getElementsByClassName('strip')].forEach(el => el.remove());
-        data.apps.forEach(app => {
-            const pid = app.type === 0 ? 0xFFFFFFFF : parseInt(app.pid);
-            let el = document.getElementById(`pid-${pid}`);
-            const vol = Math.round(app.volume * 100);
-            if (audioLocked === pid) {
-                return;
-            }
-            if (!el) {
-                el = document.createElement('div');
-                el.dataset.type = app.type;
-                el.id = `pid-${pid}`;
-                el.classList.add('strip');
-                if (app.muted) {
-                    el.classList.add('muted');
-                }
-                else {
-                    el.classList.remove('muted');
-                }
-                const icon = getIconByAppTitle(app.name);
-
-                el.innerHTML = `
-                    <div class="fill" style="height:${vol}%"></div>
-                    <div class="content">
-                      <div class="app-icon"><i class="fa-${icon.type} fa-${icon.icon}"></i></div>
-                      <div class="app-name">${app.name}</div>
-                      <div class="vol-label">${vol}</div>
-                    </div>`;
-
-                el.addEventListener('pointerdown', (e) => {
-                    activePid = pid;
-                    el.setPointerCapture?.(e.pointerId);   // drag kaçmasın
-                    triggerUpdate(e);
-                });
-                document.getElementById('mixer').appendChild(el);
-            }
-            else {
-                if (activePid !== pid) {
-                    el.querySelector('.fill').style.height = vol + '%';
-                    el.querySelector('.vol-label').innerText = vol;
-                }
-                if (app.muted) {
-                    el.classList.add('muted');
-                }
-                else {
-                    el.classList.remove('muted');
-                }
-            }
-        });
-
-        const pids = data.apps.map(a => parseInt(a.pid));
-        const mixerPids = [...document.getElementsByClassName('strip')].map(el => parseInt(el.id.split('-')[1]));
-        mixerPids
-            .filter(pid => !pids.includes(pid))
-            .forEach(pid => {
-                const el = document.getElementById(`pid-${pid}`);
-                if (el && el.dataset.type === '0') {
-                    return;
-                }
-                if (el) {
-                    el.remove();
-                }
-            });
-    }
-
-    function updateAudioDevices(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-        const container = document.getElementById('device-list');
-        container.innerHTML = '';
-
-        [...data.devices]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .forEach(dev => {
-                const btn = document.createElement('div');
-                btn.className = `device-btn ${dev.default ? 'active' : ''}`;
-                btn.innerText = dev.name;
-                btn.addEventListener('click', () => {
-                    callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
-                    lockModuleForMSec('audiodevices', 3000);
-                    [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
-                    btn.classList.add('active');
-                });
-                container.appendChild(btn);
-            });
-    }
-
-    function updateAudioAudeze(data) {
-        if (data.ok) {
-            if (data.battery <= 25) {
-                document.getElementById('audeze-battery').classList.add('critical');
-            }
-            else {
-                document.getElementById('audeze-battery').classList.remove('critical');
-            }
-            document.getElementById('audeze-battery').innerText = Math.round(data.battery) + '%';
-        }
-        else {
-            if (data.battery === 0xFF) {
-                document.getElementById('audeze-battery').innerHTML = '<i class="fa-solid fa-times" style="color: #f00;"></i>';
-            }
-        }
-    }
-
-    function updateMedia(data) {
-        if (!data || data.source < 1) {
-            return;
-        }
-
-        const hud = document.getElementById('media-hud'), fill = document.getElementById('media-progress-fill');
-        if (!data || !data.title) {
-            hud.style.display = 'none';
-            return;
-        }
-
-        window.currentIsPlaying = data.isPlaying;
-        window.currentTime = data.currentTime;
-        window.totalTime = data.duration;
-        source = getMediaSourceByTypeId(data.source);
-
-        hud.style.display = 'flex';
-        if (data.isPlaying) {
-            hud.classList.remove('paused');
-        }
-        else {
-            hud.classList.add('paused');
-        }
-        document.getElementById('media-title').innerText = data.title;
-        document.getElementById('media-source').innerText = source;
-        document.getElementById('play-status-text').innerText = window.currentIsPlaying ? 'PLAYING' : 'PAUSED';
-        document.getElementById('time-current').innerText = formatTime(data.currentTime);
-        document.getElementById('time-total').innerText = formatTime(data.duration);
-        fill.style.width = Math.min(100, (data.currentTime / data.duration) * 100) + '%';
-    }
-
-    function updateLauncherActions(data) {
-        if (!data || !data.ok) {
-            return;
-        }
-
-        const launcherZone1 = document.getElementById('launcher-zone-1');
-        const launcherZone2 = document.getElementById('launcher-zone-2');
-        const launcherZone3 = document.getElementById('launcher-zone-3');
-        const launcherZone4 = document.getElementById('launcher-zone-4');
-        const launcherZones = [null, launcherZone1, launcherZone2, launcherZone3, launcherZone4];
-        launcherZones.forEach(zone => {
-            if (zone) {
-                zone.innerHTML = '';
-            }
-        });
-
-        data.apps.forEach(action => {
-            const btn = document.createElement('div');
-            btn.className = `launcher-btn`;
-            btn.addEventListener('click', () => callRequest('launcher', { cmd: 'launch', index: action.index }));
-            const icon = getIconByObj(action);
-            btn.innerHTML = `<i class="fa-${icon.type} fa-${icon.icon}"></i>`;
-            launcherZones[action.zone || 1].appendChild(btn);
-        });
-    }
-</script>
-<script>
-    function callRequest(module, payload) {
-        console.log('CALL REQUEST:', module, payload);
-        ws.send(JSON.stringify({ module, payload }));
-    }
-
-    function callCtrl(cmd, payload) {
-        ws.send(JSON.stringify({ cmd, payload }));
-    }
-</script>
 </body>
 </html>

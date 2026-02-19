@@ -50,6 +50,7 @@ private:
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
     void openDashboard();
+    void refreshPluginsTab();
 
     QUrl m_dashboardUrl;
 
@@ -57,6 +58,10 @@ private:
     QTabWidget *tabWidget;
     QWidget *tabDashboard;
     QWidget *tabConfig;
+    QWidget *tabPlugins;
+
+    // plugins sub-tabs
+    QTabWidget *tabPluginsInner;
 
     // buttons
     QPushButton *btnToggleServer;

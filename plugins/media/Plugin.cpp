@@ -6,6 +6,10 @@
 
 #include "src/MediaMonitor.h"
 
+// Optional Qt UI
+#include <QWidget>
+#include "src/MediaUi.h"
+
 using namespace media;
 
 static WaPluginInfo INFO{
@@ -17,11 +21,16 @@ static WaPluginInfo INFO{
 
 class MediaPlugin final : public BasePlugin {
 public:
-    explicit MediaPlugin(const char *configJsonUtf8) : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8) {
+    explicit MediaPlugin(void* hostCtx, const char *configJsonUtf8)
+        : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8),
+          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
     }
+
+    WaHostApi* hostApi() const { return hostApi_; }
 
 protected:
     bool onInit(QString &err) override {
+        Q_UNUSED(err);
         return true;
     }
 
@@ -29,7 +38,7 @@ protected:
     }
 
     QJsonObject onTick() override {
-        MediaData data = media.getMedia();
+        MediaData data = media_.getMedia();
 
         QJsonObject snap;
         snap.insert("ok", true);
@@ -44,7 +53,6 @@ protected:
         return snap;
     }
 
-
     QJsonObject onRequest(const QJsonObject &req) override {
         const QString cmd = req.value("cmd").toString();
 
@@ -53,19 +61,19 @@ protected:
         }
 
         if (cmd == "playpause") {
-            media.playpause();
+            media_.playpause();
             return QJsonObject{{"ok", true}};
         }
         if (cmd == "prev") {
-            media.prev();
+            media_.prev();
             return QJsonObject{{"ok", true}};
         }
         if (cmd == "next") {
-            media.next();
+            media_.next();
             return QJsonObject{{"ok", true}};
         }
         if (cmd == "jump") {
-            media.jump(req.value("time").toInt());
+            media_.jump(req.value("time").toInt());
             return QJsonObject{{"ok", true}};
         }
 
@@ -73,13 +81,14 @@ protected:
     }
 
 private:
-    MediaMonitor media{};
+    WaHostApi* hostApi_ = nullptr;
+    MediaMonitor media_{};
 };
 
 // ---- C ABI exports ----
 // @formatter:off
 WA_EXPORT const WaPluginInfo * WA_CALL  wa_get_info()           { return &INFO; }
-WA_EXPORT void * WA_CALL    wa_create(void *, const char *cfg)  { return new MediaPlugin(cfg); }
+WA_EXPORT void * WA_CALL    wa_create(void *hostCtx, const char *cfg)  { return new MediaPlugin(hostCtx, cfg); }
 WA_EXPORT int32_t WA_CALL   wa_init(void *h)                    { return h ? ((MediaPlugin *) h)->init()     : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_start(void *h)                   { return h ? ((MediaPlugin *) h)->start()    : WA_ERR_BAD_ARG; }
 WA_EXPORT int32_t WA_CALL   wa_pause(void *h)                   { return h ? ((MediaPlugin *) h)->pause()    : WA_ERR_BAD_ARG; }
@@ -100,5 +109,12 @@ WA_EXPORT WaView WA_CALL    wa_read(void *h) {
     return h
         ? ((MediaPlugin *) h)->readView()
         : WaView{nullptr, 0};
+}
+
+// Optional UI export
+WA_EXPORT QWidget* WA_CALL wa_create_widget(void* pluginHandle, QWidget* parent) {
+    auto* p = static_cast<MediaPlugin*>(pluginHandle);
+    if (!p) return nullptr;
+    return new MediaUi(p->hostApi(), parent);
 }
 // @formatter:on
