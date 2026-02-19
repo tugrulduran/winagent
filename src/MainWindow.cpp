@@ -12,6 +12,10 @@
 #include <QTabWidget>
 #include <QLabel>
 #include <QMenu>
+#include <QSaveFile>
+#include <QRandomGenerator>
+#include <QClipboard>
+#include <QGuiApplication>
 
 #include "Logger.h"
 
@@ -25,6 +29,9 @@ const bool autostart = true;
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupUI();
     setupTray();
+
+    m_authKey = loadOrCreateSecret();
+    updateSecretUi();
 
     connect(&Logger::instance(), &Logger::logMessage, this, [this](const QString &msg, const QString &color, const bool bold) {
         txtDebug->appendHtml(QString("<span style='color:%1; font-weight:%3;'>%2</span>").arg(color, msg.toHtmlEscaped(), QString::fromStdString(bold ? "bold" : "normal")));
@@ -45,6 +52,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         nullptr);
     m_DashboardWebServer->moveToThread(m_DashboardServerThread);
     m_DashboardSocketServer->moveToThread(m_DashboardServerThread);
+
+    applySecretToWsServer();
+
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardWebServer, &DashboardServer::deleteLater);
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardSocketServer, &DashboardWebSocketServer::deleteLater);
 
@@ -77,6 +87,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::startDashboardServer() {
+    applySecretToWsServer();
     QMetaObject::invokeMethod(m_DashboardWebServer, "start", Qt::QueuedConnection);
     QMetaObject::invokeMethod(m_DashboardSocketServer, "start", Qt::QueuedConnection);
 }
@@ -151,6 +162,24 @@ void MainWindow::setupUI() {
     txtDebug->setGeometry(0, 310, 1200, 260);
     txtDebug->setReadOnly(true);
 
+    // Auth Key label + readonly box
+    QLabel *lblAuth = new QLabel("Auth Key:", tabDashboard);
+    lblAuth->setGeometry(940, 130, 100, 25);
+    lblAuth->setFont(btnFont);
+
+    txtAuthKey = new QLineEdit(tabDashboard);
+    txtAuthKey->setGeometry(1040, 130, 150, 25);
+    txtAuthKey->setReadOnly(true);
+    txtAuthKey->setFont(btnFont);
+
+    btnCopyAuthKey = new QPushButton("Copy", tabDashboard);
+    btnCopyAuthKey->setGeometry(940, 160, 120, 40);
+    btnCopyAuthKey->setFont(btnFont);
+
+    btnRegenAuthKey = new QPushButton("Regenerate", tabDashboard);
+    btnRegenAuthKey->setGeometry(1070, 160, 120, 40);
+    btnRegenAuthKey->setFont(btnFont);
+
     // =======================
     // Config TAB
     // =======================
@@ -178,12 +207,32 @@ void MainWindow::setupUI() {
     connect(btnClose, &QPushButton::clicked, qApp, &QApplication::quit);
 
     connect(btnOpenDashboard, &QPushButton::clicked, this, &MainWindow::openDashboard);
+
+    connect(btnCopyAuthKey, &QPushButton::clicked, this, &MainWindow::copyAuthKey);
+    connect(btnRegenAuthKey, &QPushButton::clicked, this, &MainWindow::regenerateAuthKey);
 }
 
 void MainWindow::openDashboard() {
     if (m_dashboardUrl.isValid()) {
         QDesktopServices::openUrl(m_dashboardUrl);
     }
+}
+
+void MainWindow::copyAuthKey() {
+    if (m_authKey.isEmpty()) return;
+    QGuiApplication::clipboard()->setText(m_authKey);
+    Logger::info("[AUTH] Key copied to clipboard.");
+}
+
+void MainWindow::regenerateAuthKey() {
+    m_authKey = generate6DigitSecret();
+    writeSecretFile(m_authKey);
+    updateSecretUi();
+
+    applySecretToWsServer();
+    QMetaObject::invokeMethod(m_DashboardSocketServer, "closeAllClients", Qt::QueuedConnection);
+
+    Logger::warn("[AUTH] Key regenerated. All websocket clients were disconnected.");
 }
 
 void MainWindow::setupTray() {
@@ -303,4 +352,50 @@ void MainWindow::refreshPluginsTab() {
         if (!label.isEmpty()) label[0] = label[0].toUpper();
         tabPluginsInner->addTab(w, label);
     }
+}
+
+QString MainWindow::authSecretPath() const {
+    // %USER_HOME%/winagent.secret
+    return QDir::home().absoluteFilePath("winagent.secret");
+}
+
+QString MainWindow::generate6DigitSecret() const {
+    const int n = QRandomGenerator::global()->bounded(0, 1000000);
+    return QString("%1").arg(n, 6, 10, QChar('0'));
+}
+
+bool MainWindow::writeSecretFile(const QString &s) {
+    QSaveFile f(authSecretPath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+    f.write(s.toUtf8());
+    f.write("\n");
+    return f.commit();
+}
+
+QString MainWindow::loadOrCreateSecret() {
+    QFile f(authSecretPath());
+    if (f.exists() && f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString s = QString::fromUtf8(f.readAll()).trimmed();
+        if (s.size() == 6 && std::all_of(s.begin(), s.end(), [](QChar c) { return c.isDigit(); })) {
+            return s;
+        }
+    }
+
+    const QString s = generate6DigitSecret();
+    writeSecretFile(s);
+    return s;
+}
+
+void MainWindow::applySecretToWsServer() {
+    if (!m_DashboardSocketServer) return;
+    QMetaObject::invokeMethod(
+        m_DashboardSocketServer,
+        "setAuthKey",
+        Qt::QueuedConnection,
+        Q_ARG(QString, m_authKey)
+    );
+}
+
+void MainWindow::updateSecretUi() {
+    if (txtAuthKey) txtAuthKey->setText(m_authKey);
 }

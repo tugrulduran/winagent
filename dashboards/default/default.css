@@ -559,3 +559,82 @@ body {
         }
     }
 }
+
+#wa-auth {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 999999;
+    font-family: var(--nstrfont), sans-serif;
+
+    .auth-container {
+        width: 400px;
+        background-color: #222;
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .title {
+            font-size: 20px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #aaa;
+            padding-bottom: 18px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+
+            #wa-auth-key {
+                width: 200px;
+                font-size: 22px;
+                padding: 10px 12px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.04);
+                color: #fff;
+                outline: none;
+                letter-spacing: 3px;
+                text-align: center;
+            }
+
+            #btn-wa-auth {
+                width: 200px;
+                padding: 10px 12px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(0, 242, 255, 0.08);
+                color: var(--accent);
+                cursor: pointer;
+            }
+        }
+
+        #wa-auth-err {
+            display: none;
+            margin-top: 10px;
+            color: #ff8080;
+            font-size: 12px;
+            min-height: 16px;
+        }
+    }
+}
+

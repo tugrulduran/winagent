@@ -5,6 +5,8 @@
 #include <QThread>
 #include <QMetaObject>
 #include <QTimer>
+#include <QUrlQuery>
+#include <QWebSocketProtocol>
 
 #include "Logger.h"
 #include "PluginManager.h"
@@ -86,6 +88,21 @@ void DashboardWebSocketServer::stop() {
 
 void DashboardWebSocketServer::onNewConnection() {
     QWebSocket *socket = nextPendingConnection();
+    if (!socket) return;
+
+    // --- AUTH CHECK ---
+    // URL: wss://ip:3004/?key=123456
+    const QUrl url = socket->requestUrl();
+    const QUrlQuery q(url);
+    const QString key = q.queryItemValue("key");
+
+    // Close if no/wrong key
+    if (m_authKey.isEmpty() || key != m_authKey) {
+        Logger::warn("[WS] Auth failed from " + socket->peerAddress().toString());
+        socket->close(QWebSocketProtocol::CloseCodePolicyViolated, "auth");
+        socket->deleteLater();
+        return;
+    }
 
     Logger::debug("[WS] New connection from " + socket->peerAddress().toString());
 
@@ -193,4 +210,28 @@ void DashboardWebSocketServer::handleModuleRequest(const QJsonObject &data) {
         sendResponse(res);
         QTimer::singleShot(100, this, [&] { broadcastJson(); });
     }
+}
+
+void DashboardWebSocketServer::setAuthKey(const QString &key) {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, "setAuthKey", Qt::QueuedConnection, Q_ARG(QString, key));
+        return;
+    }
+    m_authKey = key;
+}
+
+void DashboardWebSocketServer::closeAllClients() {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, "closeAllClients", Qt::QueuedConnection);
+        return;
+    }
+
+    const auto clients = m_clients; // snapshot
+    for (QWebSocket *socket : clients) {
+        if (!socket) continue;
+        // 1008: Policy Violation -> Client will get this code as "key is wrong / changed"
+        socket->close(QWebSocketProtocol::CloseCodePolicyViolated, "auth");
+        socket->deleteLater();
+    }
+    m_clients.clear();
 }

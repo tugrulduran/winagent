@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QThread>
 #include <memory>
+#include <QLineEdit>
 #include <QSystemTrayIcon>
 
 #include "PluginManager.h"
@@ -44,6 +45,7 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+
     void changeEvent(QEvent *event) override;
 
 private slots:
@@ -51,22 +53,49 @@ private slots:
 
     void toggleServer();
 
+    void copyAuthKey();
+
+    void regenerateAuthKey();
+
 private:
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
+
     void openDashboard();
 
     void refreshPluginsTab();
+
     void setupTray();
+
     void showFromTray();
+
     void hideToTray();
+
     void showRunningNotificationOnce();
 
-    QSystemTrayIcon* m_tray = nullptr;
-    QMenu* m_trayMenu = nullptr;
-    QAction* m_actShowHide = nullptr;
-    QAction* m_actOpenDashboard = nullptr;
-    QAction* m_actQuit = nullptr;
+    bool writeSecretFile(const QString &s);
+
+    void applySecretToWsServer();
+
+    void updateSecretUi();
+
+    QString authSecretPath() const;
+
+    QString generate6DigitSecret() const;
+
+    QString loadOrCreateSecret();
+
+    QLineEdit *txtAuthKey = nullptr;
+    QPushButton *btnCopyAuthKey = nullptr;
+    QPushButton *btnRegenAuthKey = nullptr;
+
+    QString m_authKey;
+
+    QSystemTrayIcon *m_tray = nullptr;
+    QMenu *m_trayMenu = nullptr;
+    QAction *m_actShowHide = nullptr;
+    QAction *m_actOpenDashboard = nullptr;
+    QAction *m_actQuit = nullptr;
 
     bool m_runningNotified = false;
 
@@ -86,7 +115,7 @@ private:
     QPushButton *btnManualTrigger;
     QPushButton *btnListAudioDevices;
     QPushButton *btnClose;
-    QPushButton* btnOpenDashboard;
+    QPushButton *btnOpenDashboard;
 
     // labels
     QLabel *lblCpuLoad;

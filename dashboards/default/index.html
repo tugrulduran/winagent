@@ -121,6 +121,25 @@
     </div>
 </div>
 
+<div id="wa-auth">
+    <div class="auth-container">
+        <div class="title">WinAgent Key</div>
+        <div class="subtitle">Enter the secret key from WinAgent app.</div>
+        <div class="input-container">
+            <input id="wa-auth-key"
+                   inputmode="numeric"
+                   pattern="[0-9]*"
+                   maxlength="6"
+                   placeholder="123456"
+                   autocomplete="off"
+                   autofocus />
+
+            <button id="btn-wa-auth">Connect</button>
+        </div>
+        <div id="wa-auth-err">Error</div>
+    </div>
+</div>
+
 <script>
     let activePid = null;
     let isLocked = false;
@@ -138,6 +157,7 @@
 </script>
 <script src="local-actions.js"></script>
 <script src="data-handler.js"></script>
+
 <script src="https://kit.fontawesome.com/9b70f3b7e0.js" crossorigin="anonymous"></script>
 </body>
 </html>

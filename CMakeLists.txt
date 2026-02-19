@@ -83,6 +83,7 @@ set(WA_RUNTIME_DIR "$<TARGET_FILE_DIR:WinAgent>")
 
 # Copy dashboard/default -> next to exe (dashboard/default)
 wa_copy_dir_post_build(WinAgent "${CMAKE_SOURCE_DIR}/dashboards/default" "${WA_RUNTIME_DIR}/dashboards/default")
+wa_copy_files_post_build(WinAgent WA_RUNTIME_DIR "${CMAKE_SOURCE_DIR}/app_icon.ico")
 
 # Copy certificates (recommended: keep outside build dir)
 # Example configure: -DWA_CERTS_DIR="C:/Users/tugru/WinAgentCerts"

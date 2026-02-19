@@ -292,8 +292,40 @@ function checkAgentStatus() {
     }
 }
 
+// ** Websocket connection
+const WA_SECRET_STORAGE = 'winagent.secret';
+
+function waNormalizeSecret(s) {
+    return (s || '').replace(/\D/g, '').slice(0, 6);
+}
+
+function waGetSecret() {
+    return waNormalizeSecret(localStorage.getItem(WA_SECRET_STORAGE));
+}
+
+function waShowAuth(msg) {
+    const root = document.getElementById('wa-auth');
+    const err = document.getElementById('wa-auth-err');
+    const inp = document.getElementById('wa-auth-key');
+    root.style.display = 'flex';
+    err.textContent = msg || '';
+    inp.value = '';
+    setTimeout(() => inp.focus(), 0);
+}
+
+function waHideAuth() {
+    document.getElementById('wa-auth').classList.add('hidden');
+    document.getElementById('wa-auth-err').textContent = '';
+}
+
+function waBuildWsUrl(secret) {
+    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+    const host = location.hostname;
+    return `${proto}://${host}:3004/?key=${encodeURIComponent(secret)}`;
+}
+
 let ws;
-const wsUrl = `wss://${window.location.hostname}:3004`;
+// const wsUrl = `wss://${window.location.hostname}:3004`;
 const reconnectInterval = 1000;
 
 const lockedModules = {};
@@ -315,11 +347,37 @@ function dataReceived() {
 }
 
 function connect() {
+    const secret = waGetSecret();
+    if (!secret || secret.length !== 6) {
+        waShowAuth();
+        return;
+    }
+
+    waHideAuth();
+
+    const wsUrl = waBuildWsUrl(secret);
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
         console.log('Connected to server');
+        document.getElementById('wa-auth').style.display = 'none';
         // ws.send(JSON.stringify({ cmd: "runAction", payload: { action: 1} }));
+    };
+    ws.onclose = (e) => {
+        console.log(`Socket closed with code ${e.code}. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
+        if (e.code === 1008) {
+            document.getElementById('wa-auth').style.display = 'flex';
+            localStorage.removeItem(WA_SECRET_STORAGE);
+            waShowAuth('Secret is wrong or has been changed. Re-enter the key.');
+        }
+        else {
+            setTimeout(connect, reconnectInterval);
+        }
+    };
+
+    ws.onerror = (err) => {
+        console.error('Socket encountered error: ', err.message, 'Closing socket');
+        ws.close();
     };
     ws.onmessage = (e) => {
         // console.log('RAW DATA:', e.data);
@@ -358,20 +416,35 @@ function connect() {
             }
         }
     };
-    ws.onclose = (e) => {
-        console.log(`Socket closed. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
-        setTimeout(connect, reconnectInterval);
-    };
-
-    ws.onerror = (err) => {
-        console.error('Socket encountered error: ', err.message, 'Closing socket');
-        ws.close();
-    };
 }
 
-setInterval(checkAgentStatus, 1000);
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-wa-auth');
+    const inp = document.getElementById('wa-auth-key');
+    const err = document.getElementById('wa-auth-err');
+    err.style.display = 'none';
 
-connect();
+    btn.addEventListener('click', () => {
+        const s = waNormalizeSecret(inp.value);
+        if (s.length !== 6) {
+            err.innerText = 'Key is 6 digits long!';
+            err.style.display = 'block';
+            return;
+        }
+        localStorage.setItem(WA_SECRET_STORAGE, s);
+        connect();
+    });
+
+    inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            btn.click();
+        }
+    });
+
+    connect();
+});
+
+setInterval(checkAgentStatus, 1000);
 
 function triggerUpdate(e) {
     const el = document.getElementById(`pid-${activePid}`);
