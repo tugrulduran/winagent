@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QThread>
 #include <memory>
+#include <QSystemTrayIcon>
 
 #include "PluginManager.h"
 #include "DashboardServer.h"
@@ -23,9 +24,9 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
 
-    ~MainWindow();
+    ~MainWindow() override;
 
     DashboardWebSocketServer *wsServer = nullptr;
 
@@ -41,6 +42,10 @@ signals:
 
     void dashboardServerError(const QString &msg);
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void clearLogs();
 
@@ -50,7 +55,20 @@ private:
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
     void openDashboard();
+
     void refreshPluginsTab();
+    void setupTray();
+    void showFromTray();
+    void hideToTray();
+    void showRunningNotificationOnce();
+
+    QSystemTrayIcon* m_tray = nullptr;
+    QMenu* m_trayMenu = nullptr;
+    QAction* m_actShowHide = nullptr;
+    QAction* m_actOpenDashboard = nullptr;
+    QAction* m_actQuit = nullptr;
+
+    bool m_runningNotified = false;
 
     QUrl m_dashboardUrl;
 

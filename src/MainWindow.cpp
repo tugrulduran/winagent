@@ -11,6 +11,7 @@
 #include <QUrl>
 #include <QTabWidget>
 #include <QLabel>
+#include <QMenu>
 
 #include "Logger.h"
 
@@ -23,6 +24,7 @@ const bool autostart = true;
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupUI();
+    setupTray();
 
     connect(&Logger::instance(), &Logger::logMessage, this, [this](const QString &msg, const QString &color, const bool bold) {
         txtDebug->appendHtml(QString("<span style='color:%1; font-weight:%3;'>%2</span>").arg(color, msg.toHtmlEscaped(), QString::fromStdString(bold ? "bold" : "normal")));
@@ -54,11 +56,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
         m_dashboardUrl = QUrl(url);
         btnOpenDashboard->setEnabled(m_dashboardUrl.isValid());
+        if (m_actOpenDashboard) m_actOpenDashboard->setEnabled(true);
+
+        showRunningNotificationOnce();
     });
 
     connect(m_DashboardWebServer, &DashboardServer::stopped, this, [this]() {
         m_dashboardUrl = QUrl();
         btnOpenDashboard->setEnabled(false);
+        if (m_actOpenDashboard) m_actOpenDashboard->setEnabled(false);
 
         m_serverRunning.store(false);
         btnToggleServer->setText("Start Dashboard Server");
@@ -137,7 +143,7 @@ void MainWindow::setupUI() {
     btnOpenDashboard->setFont(btnFont);
     btnOpenDashboard->setEnabled(false); // server yokken disabled
 
-    btnClose = new QPushButton("Close", tabDashboard);
+    btnClose = new QPushButton("Quit WinAgent", tabDashboard);
     btnClose->setGeometry(940, 250, 250, 51);
     btnClose->setFont(btnFont);
 
@@ -171,11 +177,95 @@ void MainWindow::setupUI() {
     connect(btnToggleServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
     connect(btnClose, &QPushButton::clicked, qApp, &QApplication::quit);
 
-    connect(btnOpenDashboard, &QPushButton::clicked, this, [this]() {
-        if (m_dashboardUrl.isValid()) {
-            QDesktopServices::openUrl(m_dashboardUrl);
-        }
+    connect(btnOpenDashboard, &QPushButton::clicked, this, &MainWindow::openDashboard);
+}
+
+void MainWindow::openDashboard() {
+    if (m_dashboardUrl.isValid()) {
+        QDesktopServices::openUrl(m_dashboardUrl);
+    }
+}
+
+void MainWindow::setupTray() {
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        Logger::warn("[TRAY] System tray not available.");
+        return;
+    }
+
+    m_tray = new QSystemTrayIcon(qApp->windowIcon(), this);
+    m_tray->setToolTip("WinAgent");
+
+    m_trayMenu = new QMenu(this);
+
+    m_actShowHide = m_trayMenu->addAction("Show / Hide");
+    connect(m_actShowHide, &QAction::triggered, this, [this] {
+        if (isVisible()) hideToTray();
+        else showFromTray();
     });
+
+    m_actOpenDashboard = m_trayMenu->addAction("Open Dashboard");
+    m_actOpenDashboard->setEnabled(false);
+    connect(m_actOpenDashboard, &QAction::triggered, this, &MainWindow::openDashboard);
+
+    m_trayMenu->addSeparator();
+
+    m_actQuit = m_trayMenu->addAction("Quit");
+    connect(m_actQuit, &QAction::triggered, qApp, &QCoreApplication::quit);
+
+    m_tray->setContextMenu(m_trayMenu);
+
+    connect(m_tray, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+                if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+                    if (isVisible()) hideToTray();
+                    else showFromTray();
+                }
+            });
+
+    m_tray->show();
+}
+
+void MainWindow::changeEvent(QEvent *event) {
+    if (event->type() == QEvent::WindowStateChange) {
+        if (isMinimized() && m_tray) {
+            QTimer::singleShot(0, this, [this] { hideToTray(); });
+        }
+    }
+    QMainWindow::changeEvent(event);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_tray) {
+        hideToTray();
+        event->ignore();
+        return;
+    }
+    QMainWindow::closeEvent(event);
+}
+
+void MainWindow::hideToTray() {
+    hide();
+}
+
+void MainWindow::showFromTray() {
+    showNormal();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::showRunningNotificationOnce() {
+    if (m_runningNotified) return;
+    m_runningNotified = true;
+
+    if (!m_tray || !QSystemTrayIcon::supportsMessages()) return;
+
+    const QString msg =
+            "WinAgent Dashboard Server is running...\n" +
+            (m_dashboardUrl.isValid() ? m_dashboardUrl.toString() : QString());
+
+    m_tray->showMessage("WinAgent", msg, QSystemTrayIcon::Information, 5000);
+
+    connect(m_tray, &QSystemTrayIcon::messageClicked, this, &MainWindow::openDashboard);
 }
 
 void MainWindow::clearLogs() {
@@ -189,23 +279,23 @@ void MainWindow::refreshPluginsTab() {
     if (!tabPluginsInner) return;
 
     while (tabPluginsInner->count() > 0) {
-        QWidget* w = tabPluginsInner->widget(0);
+        QWidget *w = tabPluginsInner->widget(0);
         tabPluginsInner->removeTab(0);
         if (w) w->deleteLater();
     }
 
     const auto plugins = plugins_.list();
     if (plugins.empty()) {
-        auto* lbl = new QLabel("No plugins loaded.", tabPluginsInner);
+        auto *lbl = new QLabel("No plugins loaded.", tabPluginsInner);
         lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
         tabPluginsInner->addTab(lbl, "(empty)");
         return;
     }
 
-    for (const auto& d : plugins) {
-        QWidget* w = plugins_.createWidget(d.id, tabPluginsInner);
+    for (const auto &d: plugins) {
+        QWidget *w = plugins_.createWidget(d.id, tabPluginsInner);
         if (!w) {
-            auto* lbl = new QLabel("This plugin does not provide a UI.", tabPluginsInner);
+            auto *lbl = new QLabel("This plugin does not provide a UI.", tabPluginsInner);
             lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
             w = lbl;
         }

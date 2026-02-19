@@ -120,6 +120,9 @@ endif()
 # Deployment logic
 install(TARGETS WinAgent RUNTIME DESTINATION bin)
 
+# Copy icon file for system tray
+install(FILES "${CMAKE_SOURCE_DIR}/app_icon.ico" DESTINATION bin)
+
 # Dashboards -> <prefix>/bin/dashboards/default
 install(FILES "${CMAKE_SOURCE_DIR}/dashboards/default/index.html" DESTINATION bin/dashboards/default)
 install(FILES "${CMAKE_SOURCE_DIR}/dashboards/default/default.css" DESTINATION bin/dashboards/default)
