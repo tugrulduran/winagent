@@ -132,13 +132,6 @@ else()
     install(FILES "${CMAKE_SOURCE_DIR}/certs/key.pem" DESTINATION bin/certs)
 endif()
 
-# hidapi runtime -> <prefix>/bin
-file(GLOB HIDAPI_DLLS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/lib/hidapi*.dll")
-if (HIDAPI_DLLS)
-    install(FILES ${HIDAPI_DLLS} DESTINATION bin)
-endif()
-
-
 target_link_options(WinAgent PRIVATE "/SUBSYSTEM:WINDOWS")
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN)

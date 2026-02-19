@@ -2,6 +2,9 @@
 build
 dist
 installer/
+autobuild/
+autorelease/
+autorelease.bat
 cmake-build-*/
 certs/*.pem
 
