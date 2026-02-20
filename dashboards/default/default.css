@@ -45,6 +45,7 @@
     --status-agent-dead-bg-color: #d66;
     --status-agent-dead-color: #ccc;
 
+    --critical-text-color: #ff0000;
 }
 
 body {
@@ -147,6 +148,10 @@ body {
                         display: flex;
                         flex-direction: row;
 
+                        &.critical {
+                            color: var(--critical-text-color);
+                        }
+
                         .audeze-icon {
                             width: 50px;
                             text-align: center;
@@ -156,6 +161,10 @@ body {
                     #local-battery {
                         display: flex;
                         flex-direction: row;
+
+                        &.critical {
+                            color: var(--critical-text-color);
+                        }
                     }
                 }
             }
@@ -170,12 +179,20 @@ body {
                     display: flex;
                     flex-direction: row;
                     justify-content: flex-end;
+
+                    #net-dl-speed {
+                        color: #afa;
+                    }
+
+                    #net-ul-speed {
+                        color: #faa;
+                    }
                 }
 
                 .net-interface-container {
                     display: flex;
                     flex-direction: row;
-                    justify-content: center;
+                    justify-content: flex-end;
                     gap: 12px;
                 }
             }

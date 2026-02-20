@@ -108,20 +108,33 @@ function updateAudioApps(data) {
                 el.classList.remove('muted');
             }
             const icon = getIconByAppTitle(app.name);
-
-            el.innerHTML = `
-                    <div class="fill" style="height:${vol}%"></div>
-                    <div class="content">
-                      <div class="app-icon"><i class="fa-${icon.type} fa-${icon.icon}"></i></div>
-                      <div class="app-name">${app.name}</div>
-                      <div class="vol-label">${vol}</div>
-                    </div>`;
-
             el.addEventListener('pointerdown', (e) => {
                 activePid = pid;
                 el.setPointerCapture?.(e.pointerId);   // drag kaçmasın
                 triggerUpdate(e);
             });
+
+            const fill = document.createElement('div');
+            fill.className = 'fill';
+            fill.style.height = vol + '%';
+            el.appendChild(fill);
+            const content = document.createElement('div');
+            content.className = 'content';
+            const appIcon = document.createElement('div');
+            appIcon.className = 'app-icon';
+            const appIconInner = document.createElement('i');
+            appIconInner.className = `fa-${icon.type} fa-${icon.icon}`;
+            appIcon.appendChild(appIconInner);
+            const appName = document.createElement('div');
+            appName.className = 'app-name';
+            appName.innerText = app.name;
+            const volLabel = document.createElement('div');
+            volLabel.className = 'vol-label';
+            volLabel.innerText = vol;
+            content.appendChild(appIcon);
+            content.appendChild(appName);
+            content.appendChild(volLabel);
+            el.appendChild(content);
             document.getElementById('mixer-container').appendChild(el);
         }
         else {
@@ -158,22 +171,56 @@ function updateAudioDevices(data) {
         return;
     }
     const container = document.getElementById('audio-devices-container');
-    container.innerHTML = '';
 
+    const deviceIds = data.devices.map(dev => dev.deviceId);
+    const existingDeviceIds = [...document.getElementsByClassName('device-btn')].map(el => el.dataset.deviceId);
+
+    // Clear non-existing devices one line
+    existingDeviceIds.forEach(deviceId => {
+        if(deviceIds.includes(deviceId)) {
+            const el = document.querySelector(`#audio-devices-container .device-btn[data-device-id="${deviceId}"]`);
+            if (!el) {
+                container.removeChild(el);
+            }
+        }
+    });
+
+    const activeDevice = data.devices.find(dev => dev.default);
+
+    // Add new devices
     [...data.devices]
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(dev => {
-            const btn = document.createElement('div');
-            btn.className = `device-btn ${dev.default ? 'active' : ''}`;
-            btn.innerText = dev.name;
-            btn.addEventListener('click', () => {
-                callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
-                lockModuleForMSec('audiodevices', 3000);
-                [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
-                btn.classList.add('active');
-            });
-            container.appendChild(btn);
+            const deviceId = dev.deviceId;
+            const el = document.querySelector(`#audio-devices-container .device-btn[data-device-id="${deviceId}"]`);
+            if (!el) {
+                const btn = document.createElement('div');
+                btn.dataset.deviceId = deviceId;
+                btn.className = `device-btn ${dev.default ? 'active' : ''}`;
+                btn.innerText = dev.name;
+                btn.addEventListener('click', () => {
+                    callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
+                    lockModuleForMSec('audiodevices', 3000);
+                    [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+                container.appendChild(btn);
+            }
+            else {
+                if (activeDevice.deviceId !== window.activeAudioDeviceId) {
+                    if (activeDevice.deviceId === deviceId) {
+                        el.classList.add('active');
+                    }
+                    else {
+                        el.classList.remove('active');
+                    }
+                }
+            }
         });
+
+    if (activeDevice.deviceId !== window.activeAudioDeviceId) {
+        window.activeAudioDeviceId = activeDevice.deviceId;
+    }
 }
 
 function updateAudioAudeze(data) {
@@ -187,7 +234,7 @@ function updateAudioAudeze(data) {
         else {
             elContainer.classList.remove('critical');
         }
-        elValue.innerHTML = `${Math.round(data.battery)}%`;
+        elValue.innerText = `${Math.round(data.battery)}%`;
     }
     else {
         elContainer.style.display = 'none';
