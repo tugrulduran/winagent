@@ -144,18 +144,18 @@ PluginCardWidget::PluginCardWidget(QWidget* parent) : QFrame(parent) {
 
     chipReads_ = new QLabel("R 0", this);
     chipReads_->setStyleSheet(chipStyle("#2A2A2A"));
-    chipReads_->setToolTip("Plugin data reads");
+    chipReads_->setToolTip("Host reads");
 
-    chipSent_ = new QLabel("S 0", this);
-    chipSent_->setStyleSheet(chipStyle("#2A2A2A"));
-    chipSent_->setToolTip("Sent data to clients");
+    chipSamples_ = new QLabel("T 0", this);
+    chipSamples_->setStyleSheet(chipStyle("#2A2A2A"));
+    chipSamples_->setToolTip("Plugin ticks");
 
     chipReq_ = new QLabel("Q 0", this);
     chipReq_->setStyleSheet(chipStyle("#2A2A2A"));
     chipReq_->setToolTip("Client requests");
 
     rowChips->addWidget(chipReads_);
-    rowChips->addWidget(chipSent_);
+    rowChips->addWidget(chipSamples_);
     rowChips->addWidget(chipReq_);
     rowChips->addStretch(1);
     root->addLayout(rowChips);
@@ -212,22 +212,25 @@ void PluginCardWidget::setStaticInfo(
 void PluginCardWidget::updateRuntime(
     int32_t state,
     uint64_t reads,
-    uint64_t sent,
+    uint64_t samples,
     uint64_t requests,
     qint64 lastReadMs,
-    qint64 lastRequestMs
+    qint64 lastRequestMs,
+    qint64 lastTickMs,
+    qint64 intervalMs
 ) {
     applyStateUi(state);
 
     chipReads_->setText("R " + formatCount(reads));
-    chipSent_->setText("S " + formatCount(sent));
+    chipSamples_->setText("T " + formatCount(samples));
     chipReq_->setText("Q " + formatCount(requests));
 
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    const QString lastUpdate = agoText(nowMs, lastReadMs);
+    const qint64 ageMs = (lastTickMs > 0) ? (nowMs - lastTickMs) : -1;
     const QString lastReq = agoText(nowMs, lastRequestMs);
+    const QString lastUpdate = agoText(nowMs, lastTickMs);
 
-    if (lastReadMs > 0 && lastRequestMs > 0) {
+    if (ageMs > 0 && lastRequestMs > 0) {
         lblLast_->setText(QString("Last: upd %1 • req %2").arg(lastUpdate, lastReq));
     } else if (lastReadMs > 0) {
         lblLast_->setText(QString("Last update: %1").arg(lastUpdate));

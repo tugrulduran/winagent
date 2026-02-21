@@ -112,6 +112,25 @@ WA_EXPORT WaView WA_CALL wa_read(void* handle) {
     if (!handle) return {nullptr, 0};
     return static_cast<LauncherPlugin*>(handle)->readView();
 }
+WA_EXPORT uint64_t WA_CALL wa_get_tick_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->tickCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_read_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->readCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_request_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->requestCount() : 0;
+}
+
+WA_EXPORT int64_t WA_CALL wa_get_last_tick_ms(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->lastTickMs() : 0;
+}
 
 WA_EXPORT WaView WA_CALL wa_request(void* handle, const char* reqJsonUtf8) {
     if (!handle) return {nullptr, 0};

@@ -14,65 +14,65 @@
 #include "PluginCardWidget.h"
 
 namespace {
-constexpr int kCardW = 220;
-constexpr int kCardH = 140;
-constexpr int kGridSpacing = 10;
+    constexpr int kCardW = 220;
+    constexpr int kCardH = 140;
+    constexpr int kGridSpacing = 10;
 
-class StatCard final : public QFrame {
-public:
-    StatCard(const QString& title, QWidget* parent = nullptr) : QFrame(parent) {
-        setObjectName("statCard");
-        setFixedSize(kCardW, 64);
-        setStyleSheet(
-            "#statCard { background: #1E1E1E; border: 1px solid #333333; border-radius: 12px; }"
-        );
+    class StatCard final : public QFrame {
+    public:
+        StatCard(const QString &title, QWidget *parent = nullptr) : QFrame(parent) {
+            setObjectName("statCard");
+            setFixedSize(kCardW, 64);
+            setStyleSheet(
+                "#statCard { background: #1E1E1E; border: 1px solid #333333; border-radius: 12px; }"
+            );
 
-        auto* root = new QVBoxLayout(this);
-        root->setContentsMargins(10, 8, 10, 8);
-        root->setSpacing(2);
+            auto *root = new QVBoxLayout(this);
+            root->setContentsMargins(10, 8, 10, 8);
+            root->setSpacing(2);
 
-        lblTitle_ = new QLabel(title, this);
-        lblTitle_->setStyleSheet("QLabel { color: #A0A0A0; font-size: 11px; }");
+            lblTitle_ = new QLabel(title, this);
+            lblTitle_->setStyleSheet("QLabel { color: #A0A0A0; font-size: 11px; }");
 
-        lblValue_ = new QLabel("0", this);
-        QFont f = lblValue_->font();
-        f.setPointSize(18);
-        f.setBold(true);
-        lblValue_->setFont(f);
-        lblValue_->setStyleSheet("QLabel { color: #F0F0F0; }");
+            lblValue_ = new QLabel("0", this);
+            QFont f = lblValue_->font();
+            f.setPointSize(18);
+            f.setBold(true);
+            lblValue_->setFont(f);
+            lblValue_->setStyleSheet("QLabel { color: #F0F0F0; }");
 
-        root->addWidget(lblTitle_);
-        root->addWidget(lblValue_);
-        root->addStretch(1);
+            root->addWidget(lblTitle_);
+            root->addWidget(lblValue_);
+            root->addStretch(1);
+        }
+
+        QLabel *valueLabel() const { return lblValue_; }
+
+    private:
+        QLabel *lblTitle_ = nullptr;
+        QLabel *lblValue_ = nullptr;
+    };
+
+    static QString normalize(const QString &s) {
+        return s.trimmed().toLower();
     }
 
-    QLabel* valueLabel() const { return lblValue_; }
-
-private:
-    QLabel* lblTitle_ = nullptr;
-    QLabel* lblValue_ = nullptr;
-};
-
-static QString normalize(const QString& s) {
-    return s.trimmed().toLower();
-}
-
-static QString formatBig(quint64 n) {
-    if (n < 1000) return QString::number(n);
-    if (n < 1000ull * 1000ull) {
-        const double v = (double)n / 1000.0;
-        return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "k";
+    static QString formatBig(quint64 n) {
+        if (n < 1000) return QString::number(n);
+        if (n < 1000ull * 1000ull) {
+            const double v = (double) n / 1000.0;
+            return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "k";
+        }
+        if (n < 1000ull * 1000ull * 1000ull) {
+            const double v = (double) n / (1000.0 * 1000.0);
+            return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "M";
+        }
+        const double v = (double) n / (1000.0 * 1000.0 * 1000.0);
+        return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "B";
     }
-    if (n < 1000ull * 1000ull * 1000ull) {
-        const double v = (double)n / (1000.0 * 1000.0);
-        return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "M";
-    }
-    const double v = (double)n / (1000.0 * 1000.0 * 1000.0);
-    return QString::number(v, 'f', v < 10.0 ? 1 : 0) + "B";
-}
 } // namespace
 
-PluginOverviewWidget::PluginOverviewWidget(PluginManager* plugins, QWidget* parent)
+PluginOverviewWidget::PluginOverviewWidget(PluginManager *plugins, QWidget *parent)
     : QFrame(parent), plugins_(plugins) {
     setObjectName("pluginOverview");
     setStyleSheet(
@@ -86,16 +86,16 @@ PluginOverviewWidget::PluginOverviewWidget(PluginManager* plugins, QWidget* pare
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
     );
 
-    auto* root = new QVBoxLayout(this);
+    auto *root = new QVBoxLayout(this);
     root->setContentsMargins(10, 10, 10, 10);
     root->setSpacing(5);
 
     // --- Controls row ---
-    auto* rowCtl = new QHBoxLayout();
+    auto *rowCtl = new QHBoxLayout();
     rowCtl->setContentsMargins(0, 0, 0, 0);
     rowCtl->setSpacing(8);
 
-    auto* lblTitle = new QLabel("Plugins", this);
+    auto *lblTitle = new QLabel("Plugins", this);
     QFont tf = lblTitle->font();
     tf.setPointSize(12);
     tf.setBold(true);
@@ -123,14 +123,14 @@ PluginOverviewWidget::PluginOverviewWidget(PluginManager* plugins, QWidget* pare
     connect(chkOnlyRunning_, &QCheckBox::toggled, this, &PluginOverviewWidget::onFilterChanged);
 
     // --- Summary row ---
-    auto* rowSummary = new QHBoxLayout();
+    auto *rowSummary = new QHBoxLayout();
     rowSummary->setContentsMargins(0, 0, 0, 0);
     rowSummary->setSpacing(kGridSpacing);
 
-    auto* cTotal = new StatCard("Total", this);
-    auto* cRun = new StatCard("Running", this);
-    auto* cClients = new StatCard("Clients", this);
-    auto* cBroadcasts = new StatCard("Broadcasts", this);
+    auto *cTotal = new StatCard("Total", this);
+    auto *cRun = new StatCard("Running", this);
+    auto *cClients = new StatCard("Clients", this);
+    auto *cBroadcasts = new StatCard("Broadcasts", this);
 
     valTotal_ = cTotal->valueLabel();
     valRunning_ = cRun->valueLabel();
@@ -195,9 +195,9 @@ void PluginOverviewWidget::tick(int clientsConnected, quint64 broadcastsSent) {
     updateCards(snap);
 
     // Summary
-    const int total = (int)snap.size();
+    const int total = (int) snap.size();
     int running = 0;
-    for (const auto& s : snap) {
+    for (const auto &s: snap) {
         if (s.state == WA_STATE_RUNNING) running++;
     }
 
@@ -208,7 +208,7 @@ void PluginOverviewWidget::tick(int clientsConnected, quint64 broadcastsSent) {
 
     // Count label (showing x / total)
     int shown = 0;
-    for (const auto& id : order_) {
+    for (const auto &id: order_) {
         auto it = cards_.find(id);
         if (it == cards_.end()) continue;
         if (!it.value()->isHidden()) shown++;
@@ -223,7 +223,7 @@ void PluginOverviewWidget::tick(int clientsConnected, quint64 broadcastsSent) {
     }
 }
 
-void PluginOverviewWidget::resizeEvent(QResizeEvent* e) {
+void PluginOverviewWidget::resizeEvent(QResizeEvent *e) {
     QFrame::resizeEvent(e);
     const int cols = calcColumns();
     if (cols != lastCols_) {
@@ -244,21 +244,21 @@ int PluginOverviewWidget::calcColumns() const {
     return qBound(1, cols, 6);
 }
 
-void PluginOverviewWidget::syncCards(const std::vector<PluginManager::PluginUiSnapshot>& snap) {
+void PluginOverviewWidget::syncCards(const std::vector<PluginManager::PluginUiSnapshot> &snap) {
     // Create missing cards and update static info.
     QSet<QString> present;
-    present.reserve((int)snap.size());
+    present.reserve((int) snap.size());
 
     order_.clear();
-    order_.reserve((int)snap.size());
+    order_.reserve((int) snap.size());
 
-    for (const auto& s : snap) {
+    for (const auto &s: snap) {
         const QString id = s.id;
         if (id.isEmpty()) continue;
         present.insert(id);
         order_.push_back(id);
 
-        PluginCardWidget* card = cards_.value(id, nullptr);
+        PluginCardWidget *card = cards_.value(id, nullptr);
         if (!card) {
             card = new PluginCardWidget(gridHost_);
             cards_.insert(id, card);
@@ -278,7 +278,8 @@ void PluginOverviewWidget::syncCards(const std::vector<PluginManager::PluginUiSn
         if (!present.contains(it.key())) {
             if (it.value()) it.value()->deleteLater();
             it = cards_.erase(it);
-        } else {
+        }
+        else {
             ++it;
         }
     }
@@ -286,18 +287,20 @@ void PluginOverviewWidget::syncCards(const std::vector<PluginManager::PluginUiSn
     rebuildGrid();
 }
 
-void PluginOverviewWidget::updateCards(const std::vector<PluginManager::PluginUiSnapshot>& snap) {
+void PluginOverviewWidget::updateCards(const std::vector<PluginManager::PluginUiSnapshot> &snap) {
     // Update runtime counters + state.
-    for (const auto& s : snap) {
-        PluginCardWidget* card = cards_.value(s.id, nullptr);
+    for (const auto &s: snap) {
+        PluginCardWidget *card = cards_.value(s.id, nullptr);
         if (!card) continue;
         card->updateRuntime(
             s.state,
             s.reads,
-            s.sent,
+            s.samples,
             s.requests,
             s.lastReadMs,
-            s.lastRequestMs
+            s.lastRequestMs,
+            s.lastTickMs,
+            s.intervalMs
         );
     }
 }
@@ -306,7 +309,7 @@ void PluginOverviewWidget::rebuildGrid() {
     if (!grid_) return;
 
     // Clear layout items
-    while (QLayoutItem* it = grid_->takeAt(0)) {
+    while (QLayoutItem *it = grid_->takeAt(0)) {
         delete it;
     }
 
@@ -318,8 +321,8 @@ void PluginOverviewWidget::rebuildGrid() {
     int c = 0;
     int shown = 0;
 
-    for (const QString& id : order_) {
-        PluginCardWidget* card = cards_.value(id, nullptr);
+    for (const QString &id: order_) {
+        PluginCardWidget *card = cards_.value(id, nullptr);
         if (!card) continue;
 
         const QString hay = normalize(card->toolTip() + " " + id);
@@ -343,10 +346,11 @@ void PluginOverviewWidget::rebuildGrid() {
     }
 
     if (shown == 0) {
-        emptyLabel_->setText(order_.isEmpty() ? "No plugins loaded." : "No plugins match the filter." );
+        emptyLabel_->setText(order_.isEmpty() ? "No plugins loaded." : "No plugins match the filter.");
         emptyLabel_->setVisible(true);
         grid_->addWidget(emptyLabel_, 0, 0, 1, qMax(1, cols));
-    } else {
+    }
+    else {
         emptyLabel_->setVisible(false);
     }
 

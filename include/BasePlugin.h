@@ -97,6 +97,10 @@ public:
     int32_t pause();
     int32_t resume();
     int32_t stop();
+    uint64_t tickCount() const noexcept { return tickCount_.load(std::memory_order_relaxed); }
+    uint64_t readCount() const noexcept { return readCount_.load(std::memory_order_relaxed); }
+    uint64_t requestCount() const noexcept { return requestCount_.load(std::memory_order_relaxed); }
+    int64_t lastTickMs() const noexcept { return lastTickMs_.load(std::memory_order_relaxed); }
 
     // Host-facing views (stable until next call of same function for this handle)
     WaView readView();
@@ -109,6 +113,11 @@ public:
     const QJsonObject& config() const noexcept { return config_; }
 
 protected:
+    std::atomic<uint64_t> tickCount_{0};
+    std::atomic<uint64_t> readCount_{0};
+    std::atomic<uint64_t> requestCount_{0};
+    std::atomic<int64_t> lastTickMs_{0};
+
     // Implement in plugin:
     virtual bool onInit(QString& err) { Q_UNUSED(err); return true; }
     virtual void onStop() {}

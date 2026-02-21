@@ -34,7 +34,9 @@ public:
         uint64_t sent,
         uint64_t requests,
         qint64 lastReadMs,
-        qint64 lastRequestMs
+        qint64 lastRequestMs,
+        qint64 lastTickMs,
+        qint64 intervalMs
     );
 
     QString pluginId() const { return pluginId_; }
@@ -64,7 +66,7 @@ private:
     QLabel* lblStatusText_ = nullptr;
 
     QLabel* chipReads_ = nullptr;
-    QLabel* chipSent_ = nullptr;
+    QLabel* chipSamples_ = nullptr;
     QLabel* chipReq_ = nullptr;
 
     QLabel* lblLast_ = nullptr;

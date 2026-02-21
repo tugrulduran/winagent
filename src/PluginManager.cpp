@@ -97,6 +97,11 @@ bool PluginManager::loadFromDir(const QString &dirPath, void *hostCtx) { {
             p->resume = (FnResume) p->lib.resolve("wa_resume");
             p->create_widget = (FnCreateWidget) p->lib.resolve("wa_create_widget");
 
+            p->get_tick_count = (FnGetU64) p->lib.resolve("wa_get_tick_count");
+            p->get_read_count = (FnGetU64) p->lib.resolve("wa_get_read_count");
+            p->get_request_count = (FnGetU64) p->lib.resolve("wa_get_request_count");
+            p->get_last_tick_ms = (FnGetI64)p->lib.resolve("wa_get_last_tick_ms");
+
             const bool missingRequired =
                     !p->get_info || !p->create || !p->init || !p->start ||
                     !p->stop || !p->destroy || !p->read || !p->req;
@@ -219,7 +224,6 @@ QJsonObject PluginManager::readAll() {
             if (p->state != State::Running) continue;
 
             p->inFlight.fetch_add(1, std::memory_order_relaxed);
-            p->reads++;
             p->lastReadMs = nowMs;
 
             readFn = p->read;
@@ -317,11 +321,14 @@ std::vector<PluginManager::PluginUiSnapshot> PluginManager::snapshotUi() const {
         s.defaultIntervalMs = p->info->defaultIntervalMs;
         s.hasUi = (p->create_widget != nullptr);
         s.state = (int32_t) p->state;
-        s.reads = p->reads;
-        s.sent = p->sent;
-        s.requests = p->requests;
+        s.samples = (p->get_tick_count && p->handle) ? p->get_tick_count(p->handle) : 0;
+        s.reads = (p->get_read_count && p->handle) ? p->get_read_count(p->handle) : 0;
+        s.requests = (p->get_request_count && p->handle) ? p->get_request_count(p->handle) : 0;
         s.lastReadMs = p->lastReadMs;
         s.lastRequestMs = p->lastRequestMs;
+        s.intervalMs = p->intervalMs;
+        s.lastTickMs = (p->get_last_tick_ms && p->handle) ? p->get_last_tick_ms(p->handle) : 0;
+
         out.push_back(s);
     }
 
