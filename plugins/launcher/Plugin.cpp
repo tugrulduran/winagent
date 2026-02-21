@@ -38,8 +38,16 @@ protected:
     }
 
     QJsonObject onRequest(const QJsonObject& req) override {
-        // Expected shape: { "cmd": "...", ... }
         const QString cmd = req.value("cmd").toString();
+
+        if (cmd == "getIcon") {
+            const QString name = req.value("name").toString();
+            if (!name.trimmed().isEmpty()) {
+                return launcher_.getIconByName(name);
+            }
+            const int index = req.value("index").toInt(-1);
+            return launcher_.getIconByIndex(index);
+        }
 
         if (cmd == "runAction") {
             const int id = req.value("id").toInt(-1);
@@ -47,7 +55,6 @@ protected:
             return QJsonObject{{"ok", true}};
         }
 
-        // Backward/forward compatible alias used by some dashboards:
         if (cmd == "launch") {
             const int index = req.value("index").toInt(-1);
             if (index >= 0) launcher_.runAction(index);

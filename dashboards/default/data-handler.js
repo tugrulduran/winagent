@@ -177,7 +177,7 @@ function updateAudioDevices(data) {
 
     // Clear non-existing devices one line
     existingDeviceIds.forEach(deviceId => {
-        if(deviceIds.includes(deviceId)) {
+        if (deviceIds.includes(deviceId)) {
             const el = document.querySelector(`#audio-devices-container .device-btn[data-device-id="${deviceId}"]`);
             if (!el) {
                 container.removeChild(el);
@@ -272,17 +272,41 @@ function updateMedia(data) {
     fill.style.width = Math.min(100, (data.currentTime / data.duration) * 100) + '%';
 }
 
+async function ensureLauncherIcon(name, btnEl) {
+    const cache = await caches.open('winagent-launcher-icons');
+    const key = `/launcher/icon/${encodeURIComponent(name)}`;
+    const hit = await cache.match(key);
+    const now = new Date();
+
+    if (!hit) {
+        if (now - (window.iconResponses[name] || 0) > 5000) {
+            window.iconResponses[name] = new Date();
+            callRequest('launcher', { cmd: 'getIcon', name });
+            setTimeout(() => window.launcherHash = null, 1000);
+        }
+        return false;
+    }
+
+    const dataUrl = await hit.text();
+    btnEl.innerHTML = `<img class="launcher-icon" src="${dataUrl}" />`;
+
+    return true;
+}
+
 function updateLauncherActions(data) {
     if (!data || !data.ok) {
         return;
     }
 
-    const launcherZone1 = document.getElementById('launcher-zone-1');
-    const launcherZone2 = document.getElementById('launcher-zone-2');
-    const launcherZone3 = document.getElementById('launcher-zone-3');
-    const launcherZone4 = document.getElementById('launcher-zone-4');
-    const launcherZones = [null, launcherZone1, launcherZone2, launcherZone3, launcherZone4];
-    launcherZones.forEach(zone => {
+    const zones = [
+        null,
+        document.getElementById('launcher-zone-1'),
+        document.getElementById('launcher-zone-2'),
+        document.getElementById('launcher-zone-3'),
+        document.getElementById('launcher-zone-4')
+    ];
+
+    zones.forEach(zone => {
         if (zone) {
             zone.innerHTML = '';
         }
@@ -290,12 +314,31 @@ function updateLauncherActions(data) {
 
     data.apps.forEach(action => {
         const btn = document.createElement('div');
-        btn.className = `launcher-btn`;
+        btn.className = 'launcher-btn';
+        btn.dataset.zone = action.zone || 1;
+        btn.dataset.index = action.index;
         btn.addEventListener('click', () => callRequest('launcher', { cmd: 'launch', index: action.index }));
-        const icon = getIconByObj(action);
-        btn.innerHTML = `<i class="fa-4x fa-${icon.type} fa-${icon.icon}"></i>`;
-        launcherZones[action.zone || 1].appendChild(btn);
+        zones[action.zone || 1].appendChild(btn);
+
+        ensureLauncherIcon(action.name, btn).then(res => {
+            if (!res) {
+                btn.innerHTML = '<i class="fa-solid fa-3x fa-circle-play"></i>';
+            }
+        });
     });
+}
+
+async function onLauncherIconResponse(res) {
+    if (!res || !res.ok || !res.name || !res.b64 || !res.mime) {
+        console.error('Invalid launcher icon response:', res);
+        return;
+    }
+
+    const dataUrl = `data:${res.mime};base64,${res.b64}`;
+    const cache = await caches.open('winagent-launcher-icons');
+    const key = `launcher/icon/${encodeURIComponent(res.name)}`;
+
+    await cache.put(key, new Response(dataUrl, { headers: { 'Content-Type': 'text/plain' } }));
 }
 
 // ** Command handlers
@@ -393,6 +436,13 @@ function dataReceived() {
     lastDataReceived = Date.now();
 }
 
+async function generateHash(obj) {
+    const msgUint8 = new TextEncoder().encode(JSON.stringify(obj));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function connect() {
     const secret = waGetSecret();
     if (!secret || secret.length !== 6) {
@@ -459,8 +509,16 @@ function connect() {
                 updateMedia(payload.modules.media);
             }
             if ('launcher' in payload.modules) {
-                updateLauncherActions(payload.modules.launcher);
+                generateHash(payload.modules.launcher).then(hash => {
+                    if (hash !== window.launcherHash) {
+                        updateLauncherActions(payload.modules.launcher);
+                        window.launcherHash = hash;
+                    }
+                });
             }
+        }
+        else if (event === 'launcher_icon_update') {
+            onLauncherIconResponse(data);
         }
     };
 }

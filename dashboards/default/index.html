@@ -76,9 +76,11 @@
     </div>
     <div class="media-container">
         <div class="status-panel">
+            <div id="launcher-zone-2"></div>
             <div id="status-wakelock" class="badge">WAKE LOCK: OFF</div>
             <div id="status-live" class="badge active">AGENT: LIVE</div>
         </div>
+        <div id="launcher-zone-3"></div>
         <div class="media-hud-container">
             <div id="media-hud" class="media-hud">
                 <div class="controls">
@@ -113,6 +115,7 @@
                 </div>
             </div>
         </div>
+        <div id="launcher-zone-4"></div>
         <div class="client-controls">
             <div id="btn-reload"><i class="fa-solid fa-rotate-right"></i></div>
             <div id="btn-wakelock"><i class="fa-regular fa-clock"></i></div>
@@ -155,6 +158,8 @@
     window.currentTime = 0;
     window.totalTime = 0;
     window.activeAudioDeviceId = null;
+    window.iconResponses = {};
+    window.launcherHash = null;
 </script>
 <script src="local-actions.js"></script>
 <script src="data-handler.js"></script>

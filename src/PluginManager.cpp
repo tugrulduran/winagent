@@ -9,17 +9,17 @@
 
 #include "Logger.h"
 
-static QByteArray readTextFileIfExists(const QString& path) {
+static QByteArray readTextFileIfExists(const QString &path) {
     QFile f(path);
     if (!f.exists()) return {};
     if (!f.open(QIODevice::ReadOnly)) return {};
     return f.readAll();
 }
 
-QJsonObject PluginManager::parseJsonObjectUtf8(const char* ptr, uint32_t len) {
+QJsonObject PluginManager::parseJsonObjectUtf8(const char *ptr, uint32_t len) {
     if (!ptr || len == 0) return {};
     QJsonParseError err;
-    QJsonDocument doc = QJsonDocument::fromJson(QByteArray(ptr, (int)len), &err);
+    QJsonDocument doc = QJsonDocument::fromJson(QByteArray(ptr, (int) len), &err);
     if (err.error != QJsonParseError::NoError || !doc.isObject()) return {};
     return doc.object();
 }
@@ -33,7 +33,7 @@ PluginManager::PluginManager() {
     hostApi_.plugin_restart = &PluginManager::host_restart;
 }
 
-PluginManager::Loaded* PluginManager::findLoadedNoLock(const QString& id) const {
+PluginManager::Loaded *PluginManager::findLoadedNoLock(const QString &id) const {
     const auto it = byId_.find(id.toStdString());
     if (it == byId_.end()) return nullptr;
     const size_t idx = it->second;
@@ -41,8 +41,7 @@ PluginManager::Loaded* PluginManager::findLoadedNoLock(const QString& id) const 
     return plugins_[idx].get();
 }
 
-bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
-    {
+bool PluginManager::loadFromDir(const QString &dirPath, void *hostCtx) { {
         std::lock_guard<std::mutex> g(mu_);
         pluginsDir_ = dirPath;
         hostCtx_ = hostCtx;
@@ -59,7 +58,7 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
     // plugins/<name>/config.json
     const auto subdirs = root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
 
-    for (const QFileInfo& sub : subdirs) {
+    for (const QFileInfo &sub: subdirs) {
         const QString folderName = sub.fileName();
         QDir pd(sub.absoluteFilePath());
 
@@ -67,7 +66,7 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
         QStringList candidates;
         candidates << pd.absoluteFilePath(folderName + ".dll");
 
-        for (const QString& dllPath : candidates) {
+        for (const QString &dllPath: candidates) {
             if (!QFileInfo::exists(dllPath))
                 continue;
 
@@ -83,23 +82,23 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
             }
 
             // Resolve required exports
-            p->get_info = (FnGetInfo)p->lib.resolve("wa_get_info");
-            p->create   = (FnCreate)p->lib.resolve("wa_create");
-            p->init     = (FnInit)p->lib.resolve("wa_init");
-            p->start    = (FnStart)p->lib.resolve("wa_start");
-            p->stop     = (FnStop)p->lib.resolve("wa_stop");
-            p->destroy  = (FnDestroy)p->lib.resolve("wa_destroy");
-            p->read     = (FnRead)p->lib.resolve("wa_read");
-            p->req      = (FnReq)p->lib.resolve("wa_request");
+            p->get_info = (FnGetInfo) p->lib.resolve("wa_get_info");
+            p->create = (FnCreate) p->lib.resolve("wa_create");
+            p->init = (FnInit) p->lib.resolve("wa_init");
+            p->start = (FnStart) p->lib.resolve("wa_start");
+            p->stop = (FnStop) p->lib.resolve("wa_stop");
+            p->destroy = (FnDestroy) p->lib.resolve("wa_destroy");
+            p->read = (FnRead) p->lib.resolve("wa_read");
+            p->req = (FnReq) p->lib.resolve("wa_request");
 
             // Optional exports
-            p->pause         = (FnPause)p->lib.resolve("wa_pause");
-            p->resume        = (FnResume)p->lib.resolve("wa_resume");
-            p->create_widget = (FnCreateWidget)p->lib.resolve("wa_create_widget");
+            p->pause = (FnPause) p->lib.resolve("wa_pause");
+            p->resume = (FnResume) p->lib.resolve("wa_resume");
+            p->create_widget = (FnCreateWidget) p->lib.resolve("wa_create_widget");
 
             const bool missingRequired =
-                !p->get_info || !p->create || !p->init || !p->start ||
-                !p->stop || !p->destroy || !p->read || !p->req;
+                    !p->get_info || !p->create || !p->init || !p->start ||
+                    !p->stop || !p->destroy || !p->read || !p->req;
 
             if (missingRequired) {
                 Logger::error("[PLUGIN] Missing exports: " + QFileInfo(dllPath).fileName());
@@ -122,14 +121,14 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
             p->handle = p->create(hostCtx, cfgJson.isEmpty() ? nullptr : cfgJson.constData());
             if (!p->handle) {
                 Logger::error(QString("[PLUGIN] create() failed: %1 (%2)")
-                                  .arg(p->info->name).arg(p->info->id));
+                    .arg(p->info->name).arg(p->info->id));
                 p->lib.unload();
                 continue;
             }
 
             if (p->init(p->handle) != WA_OK) {
                 Logger::error(QString("[PLUGIN] init() failed: %1 (%2)")
-                                  .arg(p->info->name).arg(p->info->id));
+                    .arg(p->info->name).arg(p->info->id));
                 p->destroy(p->handle);
                 p->handle = nullptr;
                 p->lib.unload();
@@ -138,7 +137,7 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
 
             if (p->start(p->handle) != WA_OK) {
                 Logger::error(QString("[PLUGIN] start() failed: %1 (%2)")
-                                  .arg(p->info->name).arg(p->info->id));
+                    .arg(p->info->name).arg(p->info->id));
                 p->destroy(p->handle);
                 p->handle = nullptr;
                 p->lib.unload();
@@ -148,9 +147,7 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
             p->state = State::Running;
 
             const auto name = p->info->name ? p->info->name : p->info->id;
-            const auto id = p->info->id;
-
-            {
+            const auto id = p->info->id; {
                 std::lock_guard<std::mutex> g(mu_);
                 byId_[p->info->id] = plugins_.size();
                 plugins_.push_back(std::move(p));
@@ -166,9 +163,9 @@ bool PluginManager::loadFromDir(const QString& dirPath, void* hostCtx) {
 
 void PluginManager::stopAll() {
     std::lock_guard<std::mutex> g(mu_);
-    for (auto& p : plugins_) {
+    for (auto &p: plugins_) {
         if (!p || !p->handle) continue;
-        (void)p->stop(p->handle);
+        (void) p->stop(p->handle);
         p->destroy(p->handle);
         p->handle = nullptr;
         p->state = State::Stopped;
@@ -183,7 +180,7 @@ void PluginManager::stopAll() {
 QJsonObject PluginManager::readAll() const {
     std::lock_guard<std::mutex> g(mu_);
     QJsonObject out;
-    for (const auto& p : plugins_) {
+    for (const auto &p: plugins_) {
         if (!p || !p->info || !p->handle) continue;
         WaView v = p->read(p->handle);
         QJsonObject obj = parseJsonObjectUtf8(v.ptr, v.len);
@@ -192,18 +189,23 @@ QJsonObject PluginManager::readAll() const {
     return out;
 }
 
-QJsonObject PluginManager::request(const QString& id, const QJsonObject& payload) const {
-    std::lock_guard<std::mutex> g(mu_);
+QJsonObject PluginManager::request(const QString &id, const QJsonObject &payload) const {
+    void *handle = nullptr;
+    QByteArray reqBytes = nullptr;
+    FnReq req = nullptr; {
+        std::lock_guard<std::mutex> g(mu_);
 
-    Loaded* pp = findLoadedNoLock(id);
-    if (!pp || !pp->handle || !pp->req) return {};
-
-    const QByteArray reqBytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
-    const WaView v = pp->req(pp->handle, reqBytes.constData());
+        Loaded *pp = findLoadedNoLock(id);
+        if (!pp || !pp->handle || !pp->req) return {};
+        handle = pp->handle;
+        req = pp->req;
+        reqBytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    }
+    const WaView v = req(handle, reqBytes.constData());
     return parseJsonObjectUtf8(v.ptr, v.len);
 }
 
-bool PluginManager::has(const QString& id) const {
+bool PluginManager::has(const QString &id) const {
     std::lock_guard<std::mutex> g(mu_);
     return byId_.find(id.toStdString()) != byId_.end();
 }
@@ -212,7 +214,7 @@ std::vector<PluginManager::PluginDesc> PluginManager::list() const {
     std::lock_guard<std::mutex> g(mu_);
     std::vector<PluginDesc> out;
     out.reserve(plugins_.size());
-    for (const auto& p : plugins_) {
+    for (const auto &p: plugins_) {
         if (!p || !p->info) continue;
         PluginDesc d;
         d.id = QString::fromUtf8(p->info->id);
@@ -223,12 +225,11 @@ std::vector<PluginManager::PluginDesc> PluginManager::list() const {
     return out;
 }
 
-QWidget* PluginManager::createWidget(const QString& id, QWidget* parent) const {
+QWidget *PluginManager::createWidget(const QString &id, QWidget *parent) const {
     FnCreateWidget fn = nullptr;
-    void* handle = nullptr;
-    {
+    void *handle = nullptr; {
         std::lock_guard<std::mutex> g(mu_);
-        Loaded* p = findLoadedNoLock(id);
+        Loaded *p = findLoadedNoLock(id);
         if (!p || !p->handle || !p->create_widget) return nullptr;
         fn = p->create_widget;
         handle = p->handle;
@@ -236,7 +237,7 @@ QWidget* PluginManager::createWidget(const QString& id, QWidget* parent) const {
     return fn(handle, parent);
 }
 
-int32_t PluginManager::recreatePluginNoLock(Loaded* p) {
+int32_t PluginManager::recreatePluginNoLock(Loaded *p) {
     if (!p || !p->create || !p->init || !p->start) return WA_ERR;
 
     const QByteArray cfgJson = readTextFileIfExists(p->configPath);
@@ -263,9 +264,9 @@ int32_t PluginManager::recreatePluginNoLock(Loaded* p) {
     return WA_OK;
 }
 
-int32_t PluginManager::startPlugin(const QString& id) {
+int32_t PluginManager::startPlugin(const QString &id) {
     std::lock_guard<std::mutex> g(mu_);
-    Loaded* p = findLoadedNoLock(id);
+    Loaded *p = findLoadedNoLock(id);
     if (!p) return WA_ERR_BAD_ARG;
 
     if (p->state == State::Running) return WA_OK;
@@ -278,7 +279,7 @@ int32_t PluginManager::startPlugin(const QString& id) {
         }
         // no resume => full recreate
         if (p->handle) {
-            (void)p->stop(p->handle);
+            (void) p->stop(p->handle);
             p->destroy(p->handle);
             p->handle = nullptr;
         }
@@ -287,16 +288,16 @@ int32_t PluginManager::startPlugin(const QString& id) {
 
     // Stopped/Error => recreate
     if (p->handle) {
-        (void)p->stop(p->handle);
+        (void) p->stop(p->handle);
         p->destroy(p->handle);
         p->handle = nullptr;
     }
     return recreatePluginNoLock(p);
 }
 
-int32_t PluginManager::stopPlugin(const QString& id) {
+int32_t PluginManager::stopPlugin(const QString &id) {
     std::lock_guard<std::mutex> g(mu_);
-    Loaded* p = findLoadedNoLock(id);
+    Loaded *p = findLoadedNoLock(id);
     if (!p) return WA_ERR_BAD_ARG;
 
     if (!p->handle) {
@@ -315,13 +316,13 @@ int32_t PluginManager::stopPlugin(const QString& id) {
     return rc;
 }
 
-int32_t PluginManager::restartPlugin(const QString& id) {
+int32_t PluginManager::restartPlugin(const QString &id) {
     std::lock_guard<std::mutex> g(mu_);
-    Loaded* p = findLoadedNoLock(id);
+    Loaded *p = findLoadedNoLock(id);
     if (!p) return WA_ERR_BAD_ARG;
 
     if (p->handle) {
-        (void)p->stop(p->handle);
+        (void) p->stop(p->handle);
         p->destroy(p->handle);
         p->handle = nullptr;
     }
@@ -329,34 +330,34 @@ int32_t PluginManager::restartPlugin(const QString& id) {
     return recreatePluginNoLock(p);
 }
 
-int32_t PluginManager::pluginState(const QString& id) const {
+int32_t PluginManager::pluginState(const QString &id) const {
     std::lock_guard<std::mutex> g(mu_);
-    Loaded* p = findLoadedNoLock(id);
-    if (!p) return (int32_t)State::Missing;
-    return (int32_t)p->state;
+    Loaded *p = findLoadedNoLock(id);
+    if (!p) return (int32_t) State::Missing;
+    return (int32_t) p->state;
 }
 
 // ---- Host API static wrappers ----
-int32_t WA_CALL PluginManager::host_get_state(void* user, const char* pluginIdUtf8) {
-    auto* pm = static_cast<PluginManager*>(user);
+int32_t WA_CALL PluginManager::host_get_state(void *user, const char *pluginIdUtf8) {
+    auto *pm = static_cast<PluginManager *>(user);
     if (!pm || !pluginIdUtf8) return WA_STATE_MISSING;
     return pm->pluginState(QString::fromUtf8(pluginIdUtf8));
 }
 
-int32_t WA_CALL PluginManager::host_start(void* user, const char* pluginIdUtf8) {
-    auto* pm = static_cast<PluginManager*>(user);
+int32_t WA_CALL PluginManager::host_start(void *user, const char *pluginIdUtf8) {
+    auto *pm = static_cast<PluginManager *>(user);
     if (!pm || !pluginIdUtf8) return WA_ERR_BAD_ARG;
     return pm->startPlugin(QString::fromUtf8(pluginIdUtf8));
 }
 
-int32_t WA_CALL PluginManager::host_stop(void* user, const char* pluginIdUtf8) {
-    auto* pm = static_cast<PluginManager*>(user);
+int32_t WA_CALL PluginManager::host_stop(void *user, const char *pluginIdUtf8) {
+    auto *pm = static_cast<PluginManager *>(user);
     if (!pm || !pluginIdUtf8) return WA_ERR_BAD_ARG;
     return pm->stopPlugin(QString::fromUtf8(pluginIdUtf8));
 }
 
-int32_t WA_CALL PluginManager::host_restart(void* user, const char* pluginIdUtf8) {
-    auto* pm = static_cast<PluginManager*>(user);
+int32_t WA_CALL PluginManager::host_restart(void *user, const char *pluginIdUtf8) {
+    auto *pm = static_cast<PluginManager *>(user);
     if (!pm || !pluginIdUtf8) return WA_ERR_BAD_ARG;
     return pm->restartPlugin(QString::fromUtf8(pluginIdUtf8));
 }
