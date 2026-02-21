@@ -54,12 +54,16 @@ add_executable(WinAgent WIN32
         src/DashboardWebSocketServer.cpp
         src/BasePlugin.cpp
         src/PluginManager.cpp
+        src/PluginCardWidget.cpp
+        src/PluginOverviewWidget.cpp
 
         include/MainWindow.h
         include/DashboardServer.h
         include/DashboardWebSocketServer.h
         include/BasePlugin.h
         include/PluginManager.h
+        include/PluginCardWidget.h
+        include/PluginOverviewWidget.h
 
         include/Logger.h
         icon.rc
@@ -83,6 +87,7 @@ set(WA_RUNTIME_DIR "$<TARGET_FILE_DIR:WinAgent>")
 
 # Copy dashboard/default -> next to exe (dashboard/default)
 wa_copy_dir_post_build(WinAgent "${CMAKE_SOURCE_DIR}/dashboards/default" "${WA_RUNTIME_DIR}/dashboards/default")
+wa_copy_files_post_build(WinAgent WA_RUNTIME_DIR "${CMAKE_SOURCE_DIR}/app_icon.ico")
 
 # Copy certificates (recommended: keep outside build dir)
 # Example configure: -DWA_CERTS_DIR="C:/Users/tugru/WinAgentCerts"
@@ -119,6 +124,9 @@ endif()
 
 # Deployment logic
 install(TARGETS WinAgent RUNTIME DESTINATION bin)
+
+# Copy icon file for system tray
+install(FILES "${CMAKE_SOURCE_DIR}/app_icon.ico" DESTINATION bin)
 
 # Dashboards -> <prefix>/bin/dashboards/default
 install(FILES "${CMAKE_SOURCE_DIR}/dashboards/default/index.html" DESTINATION bin/dashboards/default)

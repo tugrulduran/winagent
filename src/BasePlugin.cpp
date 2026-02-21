@@ -3,7 +3,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 
-BasePlugin::BasePlugin(uint32_t defaultIntervalMs, const char* configJsonUtf8) {
+BasePlugin::BasePlugin(uint32_t defaultIntervalMs, const char *configJsonUtf8) {
     intervalMs_.store(defaultIntervalMs);
 
     QString err;
@@ -12,7 +12,7 @@ BasePlugin::BasePlugin(uint32_t defaultIntervalMs, const char* configJsonUtf8) {
         const auto v = config_.value("intervalMs");
         if (v.isDouble()) {
             const int ms = v.toInt();
-            if (ms > 0) intervalMs_.store((uint32_t)ms);
+            if (ms > 0) intervalMs_.store((uint32_t) ms);
         }
     }
 
@@ -100,33 +100,35 @@ void BasePlugin::setIntervalMs(uint32_t ms) {
 }
 
 WaView BasePlugin::readView() {
+    readCount_.fetch_add(1, std::memory_order_relaxed);
     std::lock_guard<std::mutex> g(snapMu_);
     readBuf_ = latest_; // stable buffer for caller
     if (readBuf_.isEmpty()) readBuf_ = "{}";
-    return { readBuf_.constData(), (uint32_t)readBuf_.size() };
+    return {readBuf_.constData(), (uint32_t) readBuf_.size()};
 }
 
-WaView BasePlugin::requestView(const char* requestJsonUtf8) {
+WaView BasePlugin::requestView(const char *requestJsonUtf8) {
     QString err;
     QJsonObject req = parseObjectUtf8(requestJsonUtf8, &err);
     QJsonObject resp;
 
     if (!err.isEmpty()) {
         resp = QJsonObject{{"ok", false}, {"error", "bad_json"}, {"details", err}};
-    } else {
+    }
+    else {
+        requestCount_.fetch_add(1, std::memory_order_relaxed);
         resp = onRequest(req);
     }
 
-    QJsonDocument doc(resp);
-    {
+    QJsonDocument doc(resp); {
         std::lock_guard<std::mutex> g(snapMu_);
         replyBuf_ = doc.toJson(QJsonDocument::Compact);
         if (replyBuf_.isEmpty()) replyBuf_ = "{}";
-        return { replyBuf_.constData(), (uint32_t)replyBuf_.size() };
+        return {replyBuf_.constData(), (uint32_t) replyBuf_.size()};
     }
 }
 
-QJsonObject BasePlugin::onRequest(const QJsonObject& req) {
+QJsonObject BasePlugin::onRequest(const QJsonObject &req) {
     Q_UNUSED(req);
     return QJsonObject{{"ok", true}};
 }
@@ -136,7 +138,7 @@ void BasePlugin::threadMain() {
         // Wait until Running (or stop)
         {
             std::unique_lock<std::mutex> lk(cvMu_);
-            cv_.wait(lk, [&]{
+            cv_.wait(lk, [&] {
                 return stopRequested_.load() || state_.load() == State::Running;
             });
         }
@@ -145,25 +147,27 @@ void BasePlugin::threadMain() {
         // Tick
         QJsonObject obj = onTick();
         setSnapshotObject(obj);
+        tickCount_.fetch_add(1, std::memory_order_relaxed);
+        lastTickMs_.store(QDateTime::currentMSecsSinceEpoch(), std::memory_order_relaxed);
 
         // Sleep interval or wake on pause/stop/interval change
         const auto ms = intervalMs_.load();
         std::unique_lock<std::mutex> lk(cvMu_);
-        cv_.wait_for(lk, std::chrono::milliseconds(ms), [&]{
+        cv_.wait_for(lk, std::chrono::milliseconds(ms), [&] {
             return stopRequested_.load() || state_.load() != State::Running;
         });
         // if paused -> loop will wait for Running again
     }
 }
 
-void BasePlugin::setSnapshotObject(const QJsonObject& obj) {
+void BasePlugin::setSnapshotObject(const QJsonObject &obj) {
     QJsonDocument doc(obj);
     std::lock_guard<std::mutex> g(snapMu_);
     latest_ = doc.toJson(QJsonDocument::Compact);
     if (latest_.isEmpty()) latest_ = "{}";
 }
 
-QJsonObject BasePlugin::parseObjectUtf8(const char* jsonUtf8, QString* errOut) {
+QJsonObject BasePlugin::parseObjectUtf8(const char *jsonUtf8, QString *errOut) {
     if (errOut) errOut->clear();
     if (!jsonUtf8 || !*jsonUtf8) return QJsonObject{}; // empty = {}
 

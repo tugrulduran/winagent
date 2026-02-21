@@ -63,10 +63,15 @@ public slots:
 
     void broadcastJson();
 
+    void setAuthKey(const QString &key);
+    void closeAllClients();
+
+
 signals:
     void clientConnected();
 
     void clientDisconnected();
+    void broadcasted();
 
     void messageReceived(const QString &message);
 
@@ -92,4 +97,7 @@ private:
     void handleModuleRequest(const QJsonObject &data);
 
     void sendResponse(const QJsonObject &data);
+
+    QString m_authKey;
+
 };

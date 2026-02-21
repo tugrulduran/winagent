@@ -45,6 +45,7 @@
     --status-agent-dead-bg-color: #d66;
     --status-agent-dead-color: #ccc;
 
+    --critical-text-color: #ff0000;
 }
 
 body {
@@ -147,6 +148,10 @@ body {
                         display: flex;
                         flex-direction: row;
 
+                        &.critical {
+                            color: var(--critical-text-color);
+                        }
+
                         .audeze-icon {
                             width: 50px;
                             text-align: center;
@@ -156,6 +161,10 @@ body {
                     #local-battery {
                         display: flex;
                         flex-direction: row;
+
+                        &.critical {
+                            color: var(--critical-text-color);
+                        }
                     }
                 }
             }
@@ -170,12 +179,20 @@ body {
                     display: flex;
                     flex-direction: row;
                     justify-content: flex-end;
+
+                    #net-dl-speed {
+                        color: #afa;
+                    }
+
+                    #net-ul-speed {
+                        color: #faa;
+                    }
                 }
 
                 .net-interface-container {
                     display: flex;
                     flex-direction: row;
-                    justify-content: center;
+                    justify-content: flex-end;
                     gap: 12px;
                 }
             }
@@ -235,12 +252,20 @@ body {
             align-items: center;
 
             .launcher-btn {
-                border: 1px solid var(--launcher-zone-1-border-color);
-                color: var(--launcher-default-item-color);
-                padding: 8px 4px;
-                border-radius: 16px;
+                width: 72px;
+                height: 72px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 cursor: pointer;
                 transition: all 0.2s;
+
+                img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                    object-position: center;
+                }
             }
         }
     }
@@ -389,7 +414,35 @@ body {
             gap: 10px;
             font-size: 12px;
 
-            div {
+            #launcher-zone-2 {
+                height: 100px;
+                max-width: 100%;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+                align-items: center;
+
+                .launcher-btn {
+                    opacity: 0.3;
+                    &:hover { opacity: 1; }
+                    width: 72px;
+                    height: 72px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+
+                    img {
+                        max-width: 100%;
+                        max-height: 100%;
+                        object-fit: contain;
+                        object-position: center;
+                    }
+                }
+            }
+
+            #status-wakelock, #status-live {
                 opacity: 0.2;
                 padding: 10px;
                 border: 1px solid var(--accent);
@@ -415,6 +468,68 @@ body {
                     background-color: var(--status-agent-dead-bg-color);
                     color: var(--status-agent-dead-color);
                     font-weight: bold;
+                }
+            }
+        }
+
+        #launcher-zone-3 {
+            width: 200px;
+            height: 200px;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            flex-wrap: wrap-reverse;
+            align-content: flex-start;
+            gap: 7px;
+
+            .launcher-btn {
+                opacity: 0.3;
+                &:hover { opacity: 1; }
+                width: 60px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s;
+
+                img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                    object-position: center;
+                }
+            }
+        }
+
+        #launcher-zone-4 {
+            width: 320px;
+            height: 200px;
+            display: flex;
+            flex-direction: row-reverse;
+            flex-wrap: wrap-reverse;
+            justify-content: flex-start;
+            align-content: flex-start;
+            align-items: center;
+            gap: 7px;
+
+            .launcher-btn {
+                opacity: 0.3;
+                &:hover { opacity: 1; }
+                width: 60px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s;
+
+                img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                    object-position: center;
                 }
             }
         }
@@ -533,7 +648,7 @@ body {
         .client-controls {
             display: flex;
             flex-direction: column;
-            width: 210px;
+            width: 90px;
             gap: 10px;
             align-items: flex-end;
             padding: 20px;
@@ -559,3 +674,82 @@ body {
         }
     }
 }
+
+#wa-auth {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 999999;
+    font-family: var(--nstrfont), sans-serif;
+
+    .auth-container {
+        width: 400px;
+        background-color: #222;
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        .title {
+            font-size: 20px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #aaa;
+            padding-bottom: 18px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+
+            #wa-auth-key {
+                width: 200px;
+                font-size: 22px;
+                padding: 10px 12px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.04);
+                color: #fff;
+                outline: none;
+                letter-spacing: 3px;
+                text-align: center;
+            }
+
+            #btn-wa-auth {
+                width: 200px;
+                padding: 10px 12px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(0, 242, 255, 0.08);
+                color: var(--accent);
+                cursor: pointer;
+            }
+        }
+
+        #wa-auth-err {
+            display: none;
+            margin-top: 10px;
+            color: #ff8080;
+            font-size: 12px;
+            min-height: 16px;
+        }
+    }
+}
+

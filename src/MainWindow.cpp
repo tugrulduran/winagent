@@ -11,8 +11,14 @@
 #include <QUrl>
 #include <QTabWidget>
 #include <QLabel>
+#include <QMenu>
+#include <QSaveFile>
+#include <QRandomGenerator>
+#include <QClipboard>
+#include <QGuiApplication>
 
 #include "Logger.h"
+#include "PluginOverviewWidget.h"
 
 const QString btnServerOnStyle =
         "QPushButton { background: #0a0; color: white; } QPushButton:hover { background: #a00; }";
@@ -23,6 +29,10 @@ const bool autostart = true;
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupUI();
+    setupTray();
+
+    m_authKey = loadOrCreateSecret();
+    updateSecretUi();
 
     connect(&Logger::instance(), &Logger::logMessage, this, [this](const QString &msg, const QString &color, const bool bold) {
         txtDebug->appendHtml(QString("<span style='color:%1; font-weight:%3;'>%2</span>").arg(color, msg.toHtmlEscaped(), QString::fromStdString(bold ? "bold" : "normal")));
@@ -35,6 +45,38 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     plugins_.loadFromDir(pluginDir, plugins_.hostApi());
     refreshPluginsTab();
 
+    // Wire Dashboard plugin overview (top-left area)
+    if (pluginOverview_) {
+        connect(pluginOverview_, &PluginOverviewWidget::startPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.startPlugin(id);
+            if (rc == WA_OK) Logger::success("[PLUGIN] started: " + id);
+            else Logger::error("[PLUGIN] start failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::stopPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.stopPlugin(id);
+            if (rc == WA_OK) Logger::warn("[PLUGIN] stopped/paused: " + id);
+            else Logger::error("[PLUGIN] stop failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::restartPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.restartPlugin(id);
+            if (rc == WA_OK) Logger::info("[PLUGIN] restarted: " + id);
+            else Logger::error("[PLUGIN] restart failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::openPluginUiRequested, this, [this](const QString& id) {
+            if (!tabWidget || !tabPlugins || !tabPluginsInner) return;
+            tabWidget->setCurrentWidget(tabPlugins);
+
+            int idx = -1;
+            for (int i = 0; i < tabPluginsInner->count(); i++) {
+                if (tabPluginsInner->tabText(i).compare(id, Qt::CaseInsensitive) == 0) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx >= 0) tabPluginsInner->setCurrentIndex(idx);
+        });
+    }
+
     Logger::debug("[DEBUG] Creating servers...");
     m_DashboardServerThread = new QThread(this);
     m_DashboardWebServer = new DashboardServer();
@@ -43,6 +85,28 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         nullptr);
     m_DashboardWebServer->moveToThread(m_DashboardServerThread);
     m_DashboardSocketServer->moveToThread(m_DashboardServerThread);
+
+    applySecretToWsServer();
+
+    // ---- Dashboard UI counters (client/broadcast) ----
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::clientConnected, this, [this]() {
+        clientsConnected_++;
+    }, Qt::QueuedConnection);
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::clientDisconnected, this, [this]() {
+        if (clientsConnected_ > 0) clientsConnected_--;
+    }, Qt::QueuedConnection);
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::broadcasted, this, [this]() {
+        broadcastsSent_++;
+    }, Qt::QueuedConnection);
+
+    // Periodic refresh for the plugin overview (reads runtime stats from PluginManager)
+    uiTickTimer_ = new QTimer(this);
+    uiTickTimer_->setTimerType(Qt::CoarseTimer);
+    uiTickTimer_->setInterval(500);
+    connect(uiTickTimer_, &QTimer::timeout, this, &MainWindow::tickDashboardUi);
+    uiTickTimer_->start();
+    tickDashboardUi();
+
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardWebServer, &DashboardServer::deleteLater);
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardSocketServer, &DashboardWebSocketServer::deleteLater);
 
@@ -54,11 +118,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
         m_dashboardUrl = QUrl(url);
         btnOpenDashboard->setEnabled(m_dashboardUrl.isValid());
+        if (m_actOpenDashboard) m_actOpenDashboard->setEnabled(true);
+
+        showRunningNotificationOnce();
     });
 
     connect(m_DashboardWebServer, &DashboardServer::stopped, this, [this]() {
         m_dashboardUrl = QUrl();
         btnOpenDashboard->setEnabled(false);
+        if (m_actOpenDashboard) m_actOpenDashboard->setEnabled(false);
 
         m_serverRunning.store(false);
         btnToggleServer->setText("Start Dashboard Server");
@@ -71,6 +139,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::startDashboardServer() {
+    applySecretToWsServer();
     QMetaObject::invokeMethod(m_DashboardWebServer, "start", Qt::QueuedConnection);
     QMetaObject::invokeMethod(m_DashboardSocketServer, "start", Qt::QueuedConnection);
 }
@@ -137,13 +206,31 @@ void MainWindow::setupUI() {
     btnOpenDashboard->setFont(btnFont);
     btnOpenDashboard->setEnabled(false); // server yokken disabled
 
-    btnClose = new QPushButton("Close", tabDashboard);
+    btnClose = new QPushButton("Quit WinAgent", tabDashboard);
     btnClose->setGeometry(940, 250, 250, 51);
     btnClose->setFont(btnFont);
 
-    txtDebug = new QPlainTextEdit(tabDashboard);
-    txtDebug->setGeometry(0, 310, 1200, 260);
-    txtDebug->setReadOnly(true);
+    // Top-left: scrollable plugin cards overview
+    pluginOverview_ = new PluginOverviewWidget(&plugins_, tabDashboard);
+    pluginOverview_->setGeometry(0, 0, 940, 570);
+
+    // Auth Key label + readonly box
+    QLabel *lblAuth = new QLabel("Auth Key:", tabDashboard);
+    lblAuth->setGeometry(940, 130, 100, 25);
+    lblAuth->setFont(btnFont);
+
+    txtAuthKey = new QLineEdit(tabDashboard);
+    txtAuthKey->setGeometry(1040, 130, 150, 25);
+    txtAuthKey->setReadOnly(true);
+    txtAuthKey->setFont(btnFont);
+
+    btnCopyAuthKey = new QPushButton("Copy", tabDashboard);
+    btnCopyAuthKey->setGeometry(940, 160, 120, 40);
+    btnCopyAuthKey->setFont(btnFont);
+
+    btnRegenAuthKey = new QPushButton("Regenerate", tabDashboard);
+    btnRegenAuthKey->setGeometry(1070, 160, 120, 40);
+    btnRegenAuthKey->setFont(btnFont);
 
     // =======================
     // Config TAB
@@ -155,6 +242,16 @@ void MainWindow::setupUI() {
     l->setGeometry(0, 0, 1200, 600);
     l->setFont(btnFont);
     l->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+
+    // =======================
+    // Debug TAB
+    // =======================
+    tabDebug = new QWidget();
+    tabWidget->addTab(tabDebug, "Debug");
+
+    txtDebug = new QPlainTextEdit(tabDebug);
+    txtDebug->setGeometry(0, 0, 1200, 570);
+    txtDebug->setReadOnly(true);
 
     // =======================
     // Plugins TAB
@@ -171,11 +268,121 @@ void MainWindow::setupUI() {
     connect(btnToggleServer, &QPushButton::clicked, this, &MainWindow::toggleServer);
     connect(btnClose, &QPushButton::clicked, qApp, &QApplication::quit);
 
-    connect(btnOpenDashboard, &QPushButton::clicked, this, [this]() {
-        if (m_dashboardUrl.isValid()) {
-            QDesktopServices::openUrl(m_dashboardUrl);
-        }
+    connect(btnOpenDashboard, &QPushButton::clicked, this, &MainWindow::openDashboard);
+
+    connect(btnCopyAuthKey, &QPushButton::clicked, this, &MainWindow::copyAuthKey);
+    connect(btnRegenAuthKey, &QPushButton::clicked, this, &MainWindow::regenerateAuthKey);
+}
+
+void MainWindow::tickDashboardUi() {
+    if (pluginOverview_) {
+        pluginOverview_->tick(clientsConnected_, broadcastsSent_);
+    }
+}
+
+void MainWindow::openDashboard() {
+    if (m_dashboardUrl.isValid()) {
+        QDesktopServices::openUrl(m_dashboardUrl);
+    }
+}
+
+void MainWindow::copyAuthKey() {
+    if (m_authKey.isEmpty()) return;
+    QGuiApplication::clipboard()->setText(m_authKey);
+    Logger::info("[AUTH] Key copied to clipboard.");
+}
+
+void MainWindow::regenerateAuthKey() {
+    m_authKey = generate6DigitSecret();
+    writeSecretFile(m_authKey);
+    updateSecretUi();
+
+    applySecretToWsServer();
+    QMetaObject::invokeMethod(m_DashboardSocketServer, "closeAllClients", Qt::QueuedConnection);
+
+    Logger::warn("[AUTH] Key regenerated. All websocket clients were disconnected.");
+}
+
+void MainWindow::setupTray() {
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        Logger::warn("[TRAY] System tray not available.");
+        return;
+    }
+
+    m_tray = new QSystemTrayIcon(qApp->windowIcon(), this);
+    m_tray->setToolTip("WinAgent");
+
+    m_trayMenu = new QMenu(this);
+
+    m_actShowHide = m_trayMenu->addAction("Show / Hide");
+    connect(m_actShowHide, &QAction::triggered, this, [this] {
+        if (isVisible()) hideToTray();
+        else showFromTray();
     });
+
+    m_actOpenDashboard = m_trayMenu->addAction("Open Dashboard");
+    m_actOpenDashboard->setEnabled(false);
+    connect(m_actOpenDashboard, &QAction::triggered, this, &MainWindow::openDashboard);
+
+    m_trayMenu->addSeparator();
+
+    m_actQuit = m_trayMenu->addAction("Quit");
+    connect(m_actQuit, &QAction::triggered, qApp, &QCoreApplication::quit);
+
+    m_tray->setContextMenu(m_trayMenu);
+
+    connect(m_tray, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+                if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+                    if (isVisible()) hideToTray();
+                    else showFromTray();
+                }
+            });
+
+    m_tray->show();
+}
+
+void MainWindow::changeEvent(QEvent *event) {
+    if (event->type() == QEvent::WindowStateChange) {
+        if (isMinimized() && m_tray) {
+            QTimer::singleShot(0, this, [this] { hideToTray(); });
+        }
+    }
+    QMainWindow::changeEvent(event);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_tray) {
+        hideToTray();
+        event->ignore();
+        return;
+    }
+    QMainWindow::closeEvent(event);
+}
+
+void MainWindow::hideToTray() {
+    hide();
+}
+
+void MainWindow::showFromTray() {
+    showNormal();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::showRunningNotificationOnce() {
+    if (m_runningNotified) return;
+    m_runningNotified = true;
+
+    if (!m_tray || !QSystemTrayIcon::supportsMessages()) return;
+
+    const QString msg =
+            "WinAgent Dashboard Server is running...\n" +
+            (m_dashboardUrl.isValid() ? m_dashboardUrl.toString() : QString());
+
+    m_tray->showMessage("WinAgent", msg, QSystemTrayIcon::Information, 5000);
+
+    connect(m_tray, &QSystemTrayIcon::messageClicked, this, &MainWindow::openDashboard);
 }
 
 void MainWindow::clearLogs() {
@@ -189,23 +396,23 @@ void MainWindow::refreshPluginsTab() {
     if (!tabPluginsInner) return;
 
     while (tabPluginsInner->count() > 0) {
-        QWidget* w = tabPluginsInner->widget(0);
+        QWidget *w = tabPluginsInner->widget(0);
         tabPluginsInner->removeTab(0);
         if (w) w->deleteLater();
     }
 
     const auto plugins = plugins_.list();
     if (plugins.empty()) {
-        auto* lbl = new QLabel("No plugins loaded.", tabPluginsInner);
+        auto *lbl = new QLabel("No plugins loaded.", tabPluginsInner);
         lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
         tabPluginsInner->addTab(lbl, "(empty)");
         return;
     }
 
-    for (const auto& d : plugins) {
-        QWidget* w = plugins_.createWidget(d.id, tabPluginsInner);
+    for (const auto &d: plugins) {
+        QWidget *w = plugins_.createWidget(d.id, tabPluginsInner);
         if (!w) {
-            auto* lbl = new QLabel("This plugin does not provide a UI.", tabPluginsInner);
+            auto *lbl = new QLabel("This plugin does not provide a UI.", tabPluginsInner);
             lbl->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
             w = lbl;
         }
@@ -213,4 +420,50 @@ void MainWindow::refreshPluginsTab() {
         if (!label.isEmpty()) label[0] = label[0].toUpper();
         tabPluginsInner->addTab(w, label);
     }
+}
+
+QString MainWindow::authSecretPath() const {
+    // %USER_HOME%/winagent.secret
+    return QDir::home().absoluteFilePath("winagent.secret");
+}
+
+QString MainWindow::generate6DigitSecret() const {
+    const int n = QRandomGenerator::global()->bounded(0, 1000000);
+    return QString("%1").arg(n, 6, 10, QChar('0'));
+}
+
+bool MainWindow::writeSecretFile(const QString &s) {
+    QSaveFile f(authSecretPath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+    f.write(s.toUtf8());
+    f.write("\n");
+    return f.commit();
+}
+
+QString MainWindow::loadOrCreateSecret() {
+    QFile f(authSecretPath());
+    if (f.exists() && f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString s = QString::fromUtf8(f.readAll()).trimmed();
+        if (s.size() == 6 && std::all_of(s.begin(), s.end(), [](QChar c) { return c.isDigit(); })) {
+            return s;
+        }
+    }
+
+    const QString s = generate6DigitSecret();
+    writeSecretFile(s);
+    return s;
+}
+
+void MainWindow::applySecretToWsServer() {
+    if (!m_DashboardSocketServer) return;
+    QMetaObject::invokeMethod(
+        m_DashboardSocketServer,
+        "setAuthKey",
+        Qt::QueuedConnection,
+        Q_ARG(QString, m_authKey)
+    );
+}
+
+void MainWindow::updateSecretUi() {
+    if (txtAuthKey) txtAuthKey->setText(m_authKey);
 }

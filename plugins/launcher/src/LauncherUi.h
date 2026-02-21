@@ -1,50 +1,61 @@
 #pragma once
 
+#include <array>
+#include <vector>
+#include <QString>
 #include <QWidget>
 
 #include "BasePlugin.h"
 
 class QLabel;
 class QSpinBox;
-class QLineEdit;
-class QTableWidget;
 class QPushButton;
 class QTimer;
+
+class ZoneListWidget;
 
 class LauncherUi final : public QWidget {
 public:
     explicit LauncherUi(WaHostApi* api, QWidget* parent = nullptr);
 
 private:
-    static QString stateToText(int32_t state);
+    struct UiItem {
+        QString name;
+        QString path;
+    };
 
+    static QString stateToText(int32_t state);
     QString configPath() const;
+    QString iconsDir() const;
 
     void loadFromDisk();
     bool saveToDisk();
 
-    void addRow(const QString& name, const QString& path, const QString& icon);
+    void clearAllZones();
+    void rebuildZoneFromItems(int zone, const std::vector<UiItem>& items);
+
+    void onAddClicked(int zone);
+    void onRemoveClicked();
+    void onZoneSelectionChanged(int zone);
+
     void refreshStatus();
 
     WaHostApi* api_ = nullptr;
 
-    // status / controls
     QLabel* lblStatus_ = nullptr;
     QPushButton* btnStart_ = nullptr;
     QPushButton* btnStop_ = nullptr;
     QPushButton* btnRestart_ = nullptr;
 
-    // config
     QSpinBox* spinInterval_ = nullptr;
-    QTableWidget* table_ = nullptr;
 
-    // add form
-    QLineEdit* editName_ = nullptr;
-    QLineEdit* editPath_ = nullptr;
-    QPushButton* btnBrowse_ = nullptr;
-    QPushButton* btnAdd_ = nullptr;
+    std::array<ZoneListWidget*, 5> zoneLists_{};
+
     QPushButton* btnRemove_ = nullptr;
     QPushButton* btnSave_ = nullptr;
 
     QTimer* statusTimer_ = nullptr;
+
+    bool suppressSelection_ = false;
+    int selectedZone_ = -1;
 };

@@ -13,6 +13,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "launcher",
     "Launcher",
+    "Shows configured launch targets and launches them on request.",
     1000
 };
 
@@ -38,8 +39,16 @@ protected:
     }
 
     QJsonObject onRequest(const QJsonObject& req) override {
-        // Expected shape: { "cmd": "...", ... }
         const QString cmd = req.value("cmd").toString();
+
+        if (cmd == "getIcon") {
+            const QString name = req.value("name").toString();
+            if (!name.trimmed().isEmpty()) {
+                return launcher_.getIconByName(name);
+            }
+            const int index = req.value("index").toInt(-1);
+            return launcher_.getIconByIndex(index);
+        }
 
         if (cmd == "runAction") {
             const int id = req.value("id").toInt(-1);
@@ -47,7 +56,6 @@ protected:
             return QJsonObject{{"ok", true}};
         }
 
-        // Backward/forward compatible alias used by some dashboards:
         if (cmd == "launch") {
             const int index = req.value("index").toInt(-1);
             if (index >= 0) launcher_.runAction(index);
@@ -103,6 +111,25 @@ WA_EXPORT void WA_CALL wa_destroy(void* handle) {
 WA_EXPORT WaView WA_CALL wa_read(void* handle) {
     if (!handle) return {nullptr, 0};
     return static_cast<LauncherPlugin*>(handle)->readView();
+}
+WA_EXPORT uint64_t WA_CALL wa_get_tick_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->tickCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_read_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->readCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_request_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->requestCount() : 0;
+}
+
+WA_EXPORT int64_t WA_CALL wa_get_last_tick_ms(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->lastTickMs() : 0;
 }
 
 WA_EXPORT WaView WA_CALL wa_request(void* handle, const char* reqJsonUtf8) {

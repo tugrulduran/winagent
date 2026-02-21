@@ -16,17 +16,18 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "volumemixer",
     "Windows Volume Mixer",
+    "Reads and sets per-app volume levels (volume mixer).",
     1000
 };
 
 class VolumeMixerPlugin final : public BasePlugin {
 public:
-    explicit VolumeMixerPlugin(void* hostCtx, const char *configJsonUtf8)
+    explicit VolumeMixerPlugin(void *hostCtx, const char *configJsonUtf8)
         : BasePlugin(INFO.defaultIntervalMs, configJsonUtf8),
-          hostApi_(static_cast<WaHostApi*>(hostCtx)) {
+          hostApi_(static_cast<WaHostApi *>(hostCtx)) {
     }
 
-    WaHostApi* hostApi() const { return hostApi_; }
+    WaHostApi *hostApi() const { return hostApi_; }
 
 protected:
     bool onInit(QString &err) override {
@@ -89,7 +90,7 @@ protected:
 
 private:
     MixerMonitor mixer{};
-    WaHostApi* hostApi_ = nullptr;
+    WaHostApi *hostApi_ = nullptr;
 };
 
 // ---- C ABI exports ----
@@ -116,6 +117,25 @@ WA_EXPORT WaView WA_CALL    wa_read(void *h) {
     return h
         ? ((VolumeMixerPlugin *) h)->readView()
         : WaView{nullptr, 0};
+}
+WA_EXPORT uint64_t WA_CALL wa_get_tick_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->tickCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_read_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->readCount() : 0;
+}
+
+WA_EXPORT uint64_t WA_CALL wa_get_request_count(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->requestCount() : 0;
+}
+
+WA_EXPORT int64_t WA_CALL wa_get_last_tick_ms(void* h) {
+    auto* p = static_cast<BasePlugin*>(h);
+    return p ? p->lastTickMs() : 0;
 }
 
 // Optional UI export

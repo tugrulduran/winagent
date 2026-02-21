@@ -454,7 +454,7 @@ cmake --build build --config Debug --target plugins
 
 Planned improvements:
 
-- [ ] 🔐 Basic auth / token for HTTPS + WSS
+- [x] 🔐 ~~Basic auth / token for HTTPS + WSS~~
 - [ ] 👁️ Live watching plugin outputs in the UI
 - [x] ⚙️ ~~Per-plugin config in the UI (edit JSON safely)~~
 - [x] 🔄 ~~Live controls: start / stop plugins + apply config without restart~~

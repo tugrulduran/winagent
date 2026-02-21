@@ -11,7 +11,7 @@ add_library(${tgt} SHARED
 
 target_compile_definitions(${tgt} PRIVATE WA_BUILDING_PLUGIN)
 target_include_directories(${tgt} PRIVATE ${PROJECT_SOURCE_DIR}/include src)
-target_link_libraries(${tgt} PRIVATE Qt6::Core Qt6::Widgets Psapi)
+target_link_libraries(${tgt} PRIVATE Qt6::Core Qt6::Widgets shell32)
 
 if (TARGET WinAgent)
     set_target_properties(${tgt} PROPERTIES

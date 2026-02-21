@@ -108,20 +108,33 @@ function updateAudioApps(data) {
                 el.classList.remove('muted');
             }
             const icon = getIconByAppTitle(app.name);
-
-            el.innerHTML = `
-                    <div class="fill" style="height:${vol}%"></div>
-                    <div class="content">
-                      <div class="app-icon"><i class="fa-${icon.type} fa-${icon.icon}"></i></div>
-                      <div class="app-name">${app.name}</div>
-                      <div class="vol-label">${vol}</div>
-                    </div>`;
-
             el.addEventListener('pointerdown', (e) => {
                 activePid = pid;
                 el.setPointerCapture?.(e.pointerId);   // drag kaçmasın
                 triggerUpdate(e);
             });
+
+            const fill = document.createElement('div');
+            fill.className = 'fill';
+            fill.style.height = vol + '%';
+            el.appendChild(fill);
+            const content = document.createElement('div');
+            content.className = 'content';
+            const appIcon = document.createElement('div');
+            appIcon.className = 'app-icon';
+            const appIconInner = document.createElement('i');
+            appIconInner.className = `fa-${icon.type} fa-${icon.icon}`;
+            appIcon.appendChild(appIconInner);
+            const appName = document.createElement('div');
+            appName.className = 'app-name';
+            appName.innerText = app.name;
+            const volLabel = document.createElement('div');
+            volLabel.className = 'vol-label';
+            volLabel.innerText = vol;
+            content.appendChild(appIcon);
+            content.appendChild(appName);
+            content.appendChild(volLabel);
+            el.appendChild(content);
             document.getElementById('mixer-container').appendChild(el);
         }
         else {
@@ -158,22 +171,56 @@ function updateAudioDevices(data) {
         return;
     }
     const container = document.getElementById('audio-devices-container');
-    container.innerHTML = '';
 
+    const deviceIds = data.devices.map(dev => dev.deviceId);
+    const existingDeviceIds = [...document.getElementsByClassName('device-btn')].map(el => el.dataset.deviceId);
+
+    // Clear non-existing devices one line
+    existingDeviceIds.forEach(deviceId => {
+        if (deviceIds.includes(deviceId)) {
+            const el = document.querySelector(`#audio-devices-container .device-btn[data-device-id="${deviceId}"]`);
+            if (!el) {
+                container.removeChild(el);
+            }
+        }
+    });
+
+    const activeDevice = data.devices.find(dev => dev.default);
+
+    // Add new devices
     [...data.devices]
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(dev => {
-            const btn = document.createElement('div');
-            btn.className = `device-btn ${dev.default ? 'active' : ''}`;
-            btn.innerText = dev.name;
-            btn.addEventListener('click', () => {
-                callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
-                lockModuleForMSec('audiodevices', 3000);
-                [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
-                btn.classList.add('active');
-            });
-            container.appendChild(btn);
+            const deviceId = dev.deviceId;
+            const el = document.querySelector(`#audio-devices-container .device-btn[data-device-id="${deviceId}"]`);
+            if (!el) {
+                const btn = document.createElement('div');
+                btn.dataset.deviceId = deviceId;
+                btn.className = `device-btn ${dev.default ? 'active' : ''}`;
+                btn.innerText = dev.name;
+                btn.addEventListener('click', () => {
+                    callRequest('audiodevices', { cmd: 'setDevice', index: dev.index });
+                    lockModuleForMSec('audiodevices', 3000);
+                    [...document.getElementsByClassName('device-btn')].forEach(el => el.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+                container.appendChild(btn);
+            }
+            else {
+                if (activeDevice.deviceId !== window.activeAudioDeviceId) {
+                    if (activeDevice.deviceId === deviceId) {
+                        el.classList.add('active');
+                    }
+                    else {
+                        el.classList.remove('active');
+                    }
+                }
+            }
         });
+
+    if (activeDevice.deviceId !== window.activeAudioDeviceId) {
+        window.activeAudioDeviceId = activeDevice.deviceId;
+    }
 }
 
 function updateAudioAudeze(data) {
@@ -187,7 +234,7 @@ function updateAudioAudeze(data) {
         else {
             elContainer.classList.remove('critical');
         }
-        elValue.innerHTML = `${Math.round(data.battery)}%`;
+        elValue.innerText = `${Math.round(data.battery)}%`;
     }
     else {
         elContainer.style.display = 'none';
@@ -225,17 +272,41 @@ function updateMedia(data) {
     fill.style.width = Math.min(100, (data.currentTime / data.duration) * 100) + '%';
 }
 
+async function ensureLauncherIcon(name, btnEl) {
+    const cache = await caches.open('winagent-launcher-icons');
+    const key = `/launcher/icon/${encodeURIComponent(name)}`;
+    const hit = await cache.match(key);
+    const now = new Date();
+
+    if (!hit) {
+        if (now - (window.iconResponses[name] || 0) > 5000) {
+            window.iconResponses[name] = new Date();
+            callRequest('launcher', { cmd: 'getIcon', name });
+            setTimeout(() => window.launcherHash = null, 1000);
+        }
+        return false;
+    }
+
+    const dataUrl = await hit.text();
+    btnEl.innerHTML = `<img class="launcher-icon" src="${dataUrl}" />`;
+
+    return true;
+}
+
 function updateLauncherActions(data) {
     if (!data || !data.ok) {
         return;
     }
 
-    const launcherZone1 = document.getElementById('launcher-zone-1');
-    const launcherZone2 = document.getElementById('launcher-zone-2');
-    const launcherZone3 = document.getElementById('launcher-zone-3');
-    const launcherZone4 = document.getElementById('launcher-zone-4');
-    const launcherZones = [null, launcherZone1, launcherZone2, launcherZone3, launcherZone4];
-    launcherZones.forEach(zone => {
+    const zones = [
+        null,
+        document.getElementById('launcher-zone-1'),
+        document.getElementById('launcher-zone-2'),
+        document.getElementById('launcher-zone-3'),
+        document.getElementById('launcher-zone-4')
+    ];
+
+    zones.forEach(zone => {
         if (zone) {
             zone.innerHTML = '';
         }
@@ -243,12 +314,31 @@ function updateLauncherActions(data) {
 
     data.apps.forEach(action => {
         const btn = document.createElement('div');
-        btn.className = `launcher-btn`;
+        btn.className = 'launcher-btn';
+        btn.dataset.zone = action.zone || 1;
+        btn.dataset.index = action.index;
         btn.addEventListener('click', () => callRequest('launcher', { cmd: 'launch', index: action.index }));
-        const icon = getIconByObj(action);
-        btn.innerHTML = `<i class="fa-4x fa-${icon.type} fa-${icon.icon}"></i>`;
-        launcherZones[action.zone || 1].appendChild(btn);
+        zones[action.zone || 1].appendChild(btn);
+
+        ensureLauncherIcon(action.name, btn).then(res => {
+            if (!res) {
+                btn.innerHTML = '<i class="fa-solid fa-3x fa-circle-play"></i>';
+            }
+        });
     });
+}
+
+async function onLauncherIconResponse(res) {
+    if (!res || !res.ok || !res.name || !res.b64 || !res.mime) {
+        console.error('Invalid launcher icon response:', res);
+        return;
+    }
+
+    const dataUrl = `data:${res.mime};base64,${res.b64}`;
+    const cache = await caches.open('winagent-launcher-icons');
+    const key = `launcher/icon/${encodeURIComponent(res.name)}`;
+
+    await cache.put(key, new Response(dataUrl, { headers: { 'Content-Type': 'text/plain' } }));
 }
 
 // ** Command handlers
@@ -292,8 +382,40 @@ function checkAgentStatus() {
     }
 }
 
+// ** Websocket connection
+const WA_SECRET_STORAGE = 'winagent.secret';
+
+function waNormalizeSecret(s) {
+    return (s || '').replace(/\D/g, '').slice(0, 6);
+}
+
+function waGetSecret() {
+    return waNormalizeSecret(localStorage.getItem(WA_SECRET_STORAGE));
+}
+
+function waShowAuth(msg) {
+    const root = document.getElementById('wa-auth');
+    const err = document.getElementById('wa-auth-err');
+    const inp = document.getElementById('wa-auth-key');
+    root.style.display = 'flex';
+    err.textContent = msg || '';
+    inp.value = '';
+    setTimeout(() => inp.focus(), 0);
+}
+
+function waHideAuth() {
+    document.getElementById('wa-auth').classList.add('hidden');
+    document.getElementById('wa-auth-err').textContent = '';
+}
+
+function waBuildWsUrl(secret) {
+    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+    const host = location.hostname;
+    return `${proto}://${host}:3004/?key=${encodeURIComponent(secret)}`;
+}
+
 let ws;
-const wsUrl = `wss://${window.location.hostname}:3004`;
+// const wsUrl = `wss://${window.location.hostname}:3004`;
 const reconnectInterval = 1000;
 
 const lockedModules = {};
@@ -314,12 +436,45 @@ function dataReceived() {
     lastDataReceived = Date.now();
 }
 
+async function generateHash(obj) {
+    const msgUint8 = new TextEncoder().encode(JSON.stringify(obj));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function connect() {
+    const secret = waGetSecret();
+    if (!secret || secret.length !== 6) {
+        waShowAuth();
+        return;
+    }
+
+    waHideAuth();
+
+    const wsUrl = waBuildWsUrl(secret);
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
         console.log('Connected to server');
+        document.getElementById('wa-auth').style.display = 'none';
         // ws.send(JSON.stringify({ cmd: "runAction", payload: { action: 1} }));
+    };
+    ws.onclose = (e) => {
+        console.log(`Socket closed with code ${e.code}. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
+        if (e.code === 1008) {
+            document.getElementById('wa-auth').style.display = 'flex';
+            localStorage.removeItem(WA_SECRET_STORAGE);
+            waShowAuth('Secret is wrong or has been changed. Re-enter the key.');
+        }
+        else {
+            setTimeout(connect, reconnectInterval);
+        }
+    };
+
+    ws.onerror = (err) => {
+        console.error('Socket encountered error: ', err.message, 'Closing socket');
+        ws.close();
     };
     ws.onmessage = (e) => {
         // console.log('RAW DATA:', e.data);
@@ -354,24 +509,47 @@ function connect() {
                 updateMedia(payload.modules.media);
             }
             if ('launcher' in payload.modules) {
-                updateLauncherActions(payload.modules.launcher);
+                generateHash(payload.modules.launcher).then(hash => {
+                    if (hash !== window.launcherHash) {
+                        updateLauncherActions(payload.modules.launcher);
+                        window.launcherHash = hash;
+                    }
+                });
             }
         }
-    };
-    ws.onclose = (e) => {
-        console.log(`Socket closed. Reconnecting in ${reconnectInterval / 1000}s...`, e.reason);
-        setTimeout(connect, reconnectInterval);
-    };
-
-    ws.onerror = (err) => {
-        console.error('Socket encountered error: ', err.message, 'Closing socket');
-        ws.close();
+        else if (event === 'launcher_icon_update') {
+            onLauncherIconResponse(data);
+        }
     };
 }
 
-setInterval(checkAgentStatus, 1000);
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-wa-auth');
+    const inp = document.getElementById('wa-auth-key');
+    const err = document.getElementById('wa-auth-err');
+    err.style.display = 'none';
 
-connect();
+    btn.addEventListener('click', () => {
+        const s = waNormalizeSecret(inp.value);
+        if (s.length !== 6) {
+            err.innerText = 'Key is 6 digits long!';
+            err.style.display = 'block';
+            return;
+        }
+        localStorage.setItem(WA_SECRET_STORAGE, s);
+        connect();
+    });
+
+    inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            btn.click();
+        }
+    });
+
+    connect();
+});
+
+setInterval(checkAgentStatus, 1000);
 
 function triggerUpdate(e) {
     const el = document.getElementById(`pid-${activePid}`);

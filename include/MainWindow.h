@@ -8,10 +8,15 @@
 #include <QLabel>
 #include <QThread>
 #include <memory>
+#include <QLineEdit>
+#include <QSystemTrayIcon>
+#include <QPointer>
 
 #include "PluginManager.h"
 #include "DashboardServer.h"
 #include "DashboardWebSocketServer.h"
+
+class PluginOverviewWidget;
 
 class MemoryMonitor;
 class NetworkMonitor;
@@ -23,9 +28,9 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
 
-    ~MainWindow();
+    ~MainWindow() override;
 
     DashboardWebSocketServer *wsServer = nullptr;
 
@@ -41,16 +46,63 @@ signals:
 
     void dashboardServerError(const QString &msg);
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void clearLogs();
 
     void toggleServer();
 
+    void copyAuthKey();
+
+    void regenerateAuthKey();
+
+    void tickDashboardUi();
+
 private:
     // Create all widgets, layouts, and signal/slot connections.
     void setupUI();
+
     void openDashboard();
+
     void refreshPluginsTab();
+
+    void setupTray();
+
+    void showFromTray();
+
+    void hideToTray();
+
+    void showRunningNotificationOnce();
+
+    bool writeSecretFile(const QString &s);
+
+    void applySecretToWsServer();
+
+    void updateSecretUi();
+
+    QString authSecretPath() const;
+
+    QString generate6DigitSecret() const;
+
+    QString loadOrCreateSecret();
+
+    QLineEdit *txtAuthKey = nullptr;
+    QPushButton *btnCopyAuthKey = nullptr;
+    QPushButton *btnRegenAuthKey = nullptr;
+
+    QString m_authKey;
+
+    QSystemTrayIcon *m_tray = nullptr;
+    QMenu *m_trayMenu = nullptr;
+    QAction *m_actShowHide = nullptr;
+    QAction *m_actOpenDashboard = nullptr;
+    QAction *m_actQuit = nullptr;
+
+    bool m_runningNotified = false;
 
     QUrl m_dashboardUrl;
 
@@ -58,6 +110,7 @@ private:
     QTabWidget *tabWidget;
     QWidget *tabDashboard;
     QWidget *tabConfig;
+    QWidget *tabDebug;
     QWidget *tabPlugins;
 
     // plugins sub-tabs
@@ -68,7 +121,7 @@ private:
     QPushButton *btnManualTrigger;
     QPushButton *btnListAudioDevices;
     QPushButton *btnClose;
-    QPushButton* btnOpenDashboard;
+    QPushButton *btnOpenDashboard;
 
     // labels
     QLabel *lblCpuLoad;
@@ -79,6 +132,12 @@ private:
 
     // debug
     QPlainTextEdit *txtDebug;
+
+    // Dashboard top-left plugin overview (scrollable card grid)
+    QPointer<PluginOverviewWidget> pluginOverview_;
+    QTimer* uiTickTimer_ = nullptr;
+    int clientsConnected_ = 0;
+    quint64 broadcastsSent_ = 0;
 
     // External plugin DLLs (loaded from <exe_dir>/plugins)
     PluginManager plugins_;
