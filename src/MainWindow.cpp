@@ -18,6 +18,7 @@
 #include <QGuiApplication>
 
 #include "Logger.h"
+#include "PluginOverviewWidget.h"
 
 const QString btnServerOnStyle =
         "QPushButton { background: #0a0; color: white; } QPushButton:hover { background: #a00; }";
@@ -44,6 +45,38 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     plugins_.loadFromDir(pluginDir, plugins_.hostApi());
     refreshPluginsTab();
 
+    // Wire Dashboard plugin overview (top-left area)
+    if (pluginOverview_) {
+        connect(pluginOverview_, &PluginOverviewWidget::startPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.startPlugin(id);
+            if (rc == WA_OK) Logger::success("[PLUGIN] started: " + id);
+            else Logger::error("[PLUGIN] start failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::stopPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.stopPlugin(id);
+            if (rc == WA_OK) Logger::warn("[PLUGIN] stopped/paused: " + id);
+            else Logger::error("[PLUGIN] stop failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::restartPluginRequested, this, [this](const QString& id) {
+            const int32_t rc = plugins_.restartPlugin(id);
+            if (rc == WA_OK) Logger::info("[PLUGIN] restarted: " + id);
+            else Logger::error("[PLUGIN] restart failed: " + id);
+        });
+        connect(pluginOverview_, &PluginOverviewWidget::openPluginUiRequested, this, [this](const QString& id) {
+            if (!tabWidget || !tabPlugins || !tabPluginsInner) return;
+            tabWidget->setCurrentWidget(tabPlugins);
+
+            int idx = -1;
+            for (int i = 0; i < tabPluginsInner->count(); i++) {
+                if (tabPluginsInner->tabText(i).compare(id, Qt::CaseInsensitive) == 0) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx >= 0) tabPluginsInner->setCurrentIndex(idx);
+        });
+    }
+
     Logger::debug("[DEBUG] Creating servers...");
     m_DashboardServerThread = new QThread(this);
     m_DashboardWebServer = new DashboardServer();
@@ -54,6 +87,25 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_DashboardSocketServer->moveToThread(m_DashboardServerThread);
 
     applySecretToWsServer();
+
+    // ---- Dashboard UI counters (client/broadcast) ----
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::clientConnected, this, [this]() {
+        clientsConnected_++;
+    }, Qt::QueuedConnection);
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::clientDisconnected, this, [this]() {
+        if (clientsConnected_ > 0) clientsConnected_--;
+    }, Qt::QueuedConnection);
+    connect(m_DashboardSocketServer, &DashboardWebSocketServer::broadcasted, this, [this]() {
+        broadcastsSent_++;
+    }, Qt::QueuedConnection);
+
+    // Periodic refresh for the plugin overview (reads runtime stats from PluginManager)
+    uiTickTimer_ = new QTimer(this);
+    uiTickTimer_->setTimerType(Qt::CoarseTimer);
+    uiTickTimer_->setInterval(500);
+    connect(uiTickTimer_, &QTimer::timeout, this, &MainWindow::tickDashboardUi);
+    uiTickTimer_->start();
+    tickDashboardUi();
 
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardWebServer, &DashboardServer::deleteLater);
     connect(m_DashboardServerThread, &QThread::finished, m_DashboardSocketServer, &DashboardWebSocketServer::deleteLater);
@@ -158,9 +210,9 @@ void MainWindow::setupUI() {
     btnClose->setGeometry(940, 250, 250, 51);
     btnClose->setFont(btnFont);
 
-    txtDebug = new QPlainTextEdit(tabDashboard);
-    txtDebug->setGeometry(0, 310, 1200, 260);
-    txtDebug->setReadOnly(true);
+    // Top-left: scrollable plugin cards overview
+    pluginOverview_ = new PluginOverviewWidget(&plugins_, tabDashboard);
+    pluginOverview_->setGeometry(0, 0, 940, 570);
 
     // Auth Key label + readonly box
     QLabel *lblAuth = new QLabel("Auth Key:", tabDashboard);
@@ -192,6 +244,16 @@ void MainWindow::setupUI() {
     l->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
 
     // =======================
+    // Debug TAB
+    // =======================
+    tabDebug = new QWidget();
+    tabWidget->addTab(tabDebug, "Debug");
+
+    txtDebug = new QPlainTextEdit(tabDebug);
+    txtDebug->setGeometry(0, 0, 1200, 570);
+    txtDebug->setReadOnly(true);
+
+    // =======================
     // Plugins TAB
     // =======================
     tabPlugins = new QWidget();
@@ -210,6 +272,12 @@ void MainWindow::setupUI() {
 
     connect(btnCopyAuthKey, &QPushButton::clicked, this, &MainWindow::copyAuthKey);
     connect(btnRegenAuthKey, &QPushButton::clicked, this, &MainWindow::regenerateAuthKey);
+}
+
+void MainWindow::tickDashboardUi() {
+    if (pluginOverview_) {
+        pluginOverview_->tick(clientsConnected_, broadcastsSent_);
+    }
 }
 
 void MainWindow::openDashboard() {

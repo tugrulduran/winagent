@@ -13,6 +13,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "launcher",
     "Launcher",
+    "Shows configured launch targets and launches them on request.",
     1000
 };
 

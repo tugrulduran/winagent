@@ -54,12 +54,16 @@ add_executable(WinAgent WIN32
         src/DashboardWebSocketServer.cpp
         src/BasePlugin.cpp
         src/PluginManager.cpp
+        src/PluginCardWidget.cpp
+        src/PluginOverviewWidget.cpp
 
         include/MainWindow.h
         include/DashboardServer.h
         include/DashboardWebSocketServer.h
         include/BasePlugin.h
         include/PluginManager.h
+        include/PluginCardWidget.h
+        include/PluginOverviewWidget.h
 
         include/Logger.h
         icon.rc

@@ -16,6 +16,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "audezemaxwell",
     "Audeze Maxwell Info",
+    "Reads Audeze Maxwell headset status (battery/connection/EQ).",
     10000
 };
 

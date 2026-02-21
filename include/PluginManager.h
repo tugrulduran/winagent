@@ -1,12 +1,15 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
 
 #include <QString>
+#include <QStringList>
 #include <QLibrary>
 #include <QJsonObject>
 
@@ -24,7 +27,23 @@ public:
     struct PluginDesc {
         QString id;
         QString name;
+        QString description;
+        uint32_t defaultIntervalMs = 0;
         bool hasUi = false;
+    };
+
+    struct PluginUiSnapshot {
+        QString id;
+        QString name;
+        QString description;
+        uint32_t defaultIntervalMs = 0;
+        bool hasUi = false;
+        int32_t state = WA_STATE_MISSING;
+        uint64_t reads = 0;
+        uint64_t sent = 0;
+        uint64_t requests = 0;
+        qint64 lastReadMs = 0;
+        qint64 lastRequestMs = 0;
     };
 
     PluginManager();
@@ -34,17 +53,21 @@ public:
     void stopAll();
 
     // Read latest JSON snapshots from all plugins as:
-    QJsonObject readAll() const;
+    QJsonObject readAll();
 
     // Route a request to a specific plugin.
     // Returns {} if plugin not found or response invalid.
-    QJsonObject request(const QString& id, const QJsonObject& payload) const;
+    QJsonObject request(const QString& id, const QJsonObject& payload);
 
     bool has(const QString& id) const;
 
-    // ---- UI (optional) ----
+        // ---- UI (optional) ----
     std::vector<PluginDesc> list() const;
+    std::vector<PluginUiSnapshot> snapshotUi() const;
     QWidget* createWidget(const QString& id, QWidget* parent) const;
+
+    // Called by the WS server after broadcasting an update (increments per-plugin sent counters).
+    void markSent(const QStringList& pluginIds);
 
     // ---- Lifecycle controls ----
     int32_t startPlugin(const QString& id);
@@ -99,9 +122,21 @@ private:
         void* handle = nullptr;
         QString configPath;
         State state = State::Stopped;
+
+        // UI metadata
+        QString description;
+
+        // Runtime stats (for the Dashboard overview)
+        std::atomic<int> inFlight{0};
+        uint64_t reads = 0;
+        uint64_t sent = 0;
+        uint64_t requests = 0;
+        qint64 lastReadMs = 0;
+        qint64 lastRequestMs = 0;
     };
 
     mutable std::mutex mu_;
+    mutable std::condition_variable cv_;
     std::vector<std::unique_ptr<Loaded>> plugins_;
     std::unordered_map<std::string, size_t> byId_;
 
@@ -114,9 +149,10 @@ private:
 
     static QJsonObject parseJsonObjectUtf8(const char* ptr, uint32_t len);
 
+    void waitNoInflight(std::unique_lock<std::mutex>& lk, PluginManager::Loaded* p, std::condition_variable& cv);
+
     // Internal helpers (mu_ must be held)
     Loaded* findLoadedNoLock(const QString& id) const;
-    int32_t recreatePluginNoLock(Loaded* p);
     static int32_t WA_CALL host_get_state(void* user, const char* pluginIdUtf8);
     static int32_t WA_CALL host_start(void* user, const char* pluginIdUtf8);
     static int32_t WA_CALL host_stop(void* user, const char* pluginIdUtf8);

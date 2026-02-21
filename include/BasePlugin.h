@@ -24,6 +24,7 @@ struct WaPluginInfo {
     uint32_t    apiVersion;        // must equal WA_PLUGIN_API_VERSION
     const char* id;                // stable unique id (e.g., "cpu")
     const char* name;              // display name
+    const char* desc;              // description
     uint32_t    defaultIntervalMs; // plugin default sampling interval
 };
 

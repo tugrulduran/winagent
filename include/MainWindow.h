@@ -10,10 +10,13 @@
 #include <memory>
 #include <QLineEdit>
 #include <QSystemTrayIcon>
+#include <QPointer>
 
 #include "PluginManager.h"
 #include "DashboardServer.h"
 #include "DashboardWebSocketServer.h"
+
+class PluginOverviewWidget;
 
 class MemoryMonitor;
 class NetworkMonitor;
@@ -56,6 +59,8 @@ private slots:
     void copyAuthKey();
 
     void regenerateAuthKey();
+
+    void tickDashboardUi();
 
 private:
     // Create all widgets, layouts, and signal/slot connections.
@@ -105,6 +110,7 @@ private:
     QTabWidget *tabWidget;
     QWidget *tabDashboard;
     QWidget *tabConfig;
+    QWidget *tabDebug;
     QWidget *tabPlugins;
 
     // plugins sub-tabs
@@ -126,6 +132,12 @@ private:
 
     // debug
     QPlainTextEdit *txtDebug;
+
+    // Dashboard top-left plugin overview (scrollable card grid)
+    QPointer<PluginOverviewWidget> pluginOverview_;
+    QTimer* uiTickTimer_ = nullptr;
+    int clientsConnected_ = 0;
+    quint64 broadcastsSent_ = 0;
 
     // External plugin DLLs (loaded from <exe_dir>/plugins)
     PluginManager plugins_;

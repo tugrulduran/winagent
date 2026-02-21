@@ -16,6 +16,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "media",
     "Media Controller",
+    "Reports media sessions and handles playback commands.",
     1000
 };
 

@@ -16,6 +16,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "basiccpu",
     "Basic Cpu Info",
+    "Reads and reports CPU cores + usage.",
     1000
 };
 

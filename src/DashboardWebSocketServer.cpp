@@ -172,6 +172,11 @@ void DashboardWebSocketServer::broadcastJson() {
     QJsonDocument doc(root);
     const QString json = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 
+    if (m_plugins) {
+        m_plugins->markSent(modules.keys());
+    }
+    emit broadcasted();
+
     const auto clients = m_clients;
     for (QWebSocket *socket: clients) {
         if (!socket) continue;

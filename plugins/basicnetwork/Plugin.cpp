@@ -16,6 +16,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "basicnetwork",
     "Basic Network Info",
+    "Reads and reports basic network I/O statistics.",
     1000
 };
 

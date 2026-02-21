@@ -15,6 +15,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "dummy",
     "Dummy Plugin",
+    "Example plugin that returns a dummy snapshot.",
     1000
 };
 

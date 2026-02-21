@@ -15,6 +15,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "basicmemory",
     "Basic Ram Info",
+    "Reads and reports memory usage.",
     5000
 };
 

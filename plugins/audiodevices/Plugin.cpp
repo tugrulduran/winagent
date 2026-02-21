@@ -16,6 +16,7 @@ static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "audiodevices",
     "Windows Audio Devices",
+    "Lists audio devices and reports changes/default device.",
     3000
 };
 

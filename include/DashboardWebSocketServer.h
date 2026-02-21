@@ -71,6 +71,7 @@ signals:
     void clientConnected();
 
     void clientDisconnected();
+    void broadcasted();
 
     void messageReceived(const QString &message);
 
