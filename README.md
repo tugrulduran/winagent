@@ -466,6 +466,21 @@ Planned improvements:
 
 ---
 
+## 🧩 Plugin Ideas
+
+Planned new plugins:
+
+- [ ] Sensor data (CPU, GPU temperatures)
+- [ ] Windows updates & Restart status
+- [x] ~~Disk usage & info per drive~~
+- [ ] Bluetooth devices
+- [ ] Docker container info / actions
+- [ ] Audio profiles for gamers
+- [ ] App / Game session tracker
+- [ ] Battery info and power plan switcher
+
+---
+
 ## 🧯 Troubleshooting
 
 ### 🔒 “Certificate warning” in browser

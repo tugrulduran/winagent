@@ -355,13 +355,14 @@ function updateDisks(data) {
 
     const container = document.getElementById('disks-container');
     data.disks.forEach(disk => {
+        const usedBytes = disk.totalBytes - disk.freeBytes;
         const totalGB = (disk.totalBytes / 1024 / 1024 / 1024).toFixed(1);
         const freeGB = (disk.freeBytes / 1024 / 1024 / 1024).toFixed(1);
         const totalTB = (disk.totalBytes / 1024 / 1024 / 1024 / 1024).toFixed(1);
         const freeTB = (disk.freeBytes / 1024 / 1024 / 1024 / 1024).toFixed(1);
         const fTotal = totalGB > 100 ? `${totalTB} TB` : `${totalGB} GB`;
         const fFree = freeGB > 100 ? `${freeTB} TB` : `${freeGB} GB`;
-        const percent = ((disk.freeBytes / disk.totalBytes) * 100).toFixed(2);
+        const percent = ((usedBytes / disk.totalBytes) * 100).toFixed(2);
         let fillType = 'normal';
         if(percent > 90) { fillType = 'critical'; }
         else if(percent > 70) { fillType = 'warning'; }
@@ -379,7 +380,29 @@ function updateDisks(data) {
 
             const iconEl = document.createElement('div');
             iconEl.className = 'disk-icon';
-            iconEl.innerHTML = `<i class="${getFaDiskIconByType(disk.type)} fa-2x"></i>`;
+            const iconImg = document.createElement('img');
+            if(disk.drive === 'C:') {
+                iconImg.src = 'files/icons/c-drive.png';
+            }
+            else if(disk.type === 'HDD') {
+                iconImg.src = 'files/icons/hdd.png';
+            }
+            else if(disk.type === 'SSD') {
+                iconImg.src = 'files/icons/ssd.png';
+            }
+            else if(disk.type === 'USB') {
+                iconImg.src = 'files/icons/flashdrive.png';
+            }
+            else if(disk.type === 'CDROM') {
+                iconImg.src = 'files/icons/cdrom.png';
+            }
+            else if(disk.type === 'Network') {
+                iconImg.src = 'files/icons/network-drive.png';
+            }
+            else {
+                iconImg.src = 'files/icons/hdd.png';
+            }
+            iconEl.appendChild(iconImg);
 
             const infoEl = document.createElement('div');
             infoEl.className = 'disk-info';
@@ -440,8 +463,8 @@ function updateDisks(data) {
                 existingEl.querySelector('.disk-icon').innerHTML = `<i class="${getFaDiskIconByType(disk.type)} fa-2x"></i>`;
             }
 
-            if(disk.freeBytes !== existingEl.dataset.free || disk.totalBytes !== existingEl.dataset.size) {
-                existingEl.dataset.free = disk.free;
+            if(`${disk.freeBytes}` !== existingEl.dataset.free || `${disk.totalBytes}` !== existingEl.dataset.size) {
+                existingEl.dataset.free = disk.freeBytes;
                 existingEl.querySelector('.disk-bar').style.width = `${percent}%`;
                 existingEl.querySelector('.disk-bar').dataset.percent = percent;
                 existingEl.querySelector('.disk-bar').dataset.fillType = fillType;
@@ -449,6 +472,49 @@ function updateDisks(data) {
             }
         }
     })
+}
+
+function updateRebootStatus(data) {
+    if(!data || !data.ok) { return; }
+
+    const flags = data.flags;
+    const required = data.required;
+    const recommended = !required && data.level === 1;
+
+    const icon = document.getElementById('reboot-icon');
+
+    if(required && (flags.windowsUpdate || flags.cbsPending)) {
+        icon.dataset.status = 'required';
+    }
+    else if(!required && recommended && (windowsUpdate || cbsPending)) {
+        icon.dataset.status = 'recommended';
+    }
+    else {
+        icon.dataset.status = 'none';
+    }
+}
+
+function updateWindowsUpdateStatus(data) {
+    if(!data || !data.ok) { return; }
+
+    const container = document.getElementById('windows-update-container');
+    const countEl = document.getElementById('windows-update-count');
+    const optional = data.updates.filter(u => u.importance === 'optional');
+    const important = data.updates.filter(u => u.importance !== 'optional');
+    if(`${important.length}-${optional.length}` !== container.dataset.count) {
+        if(important.length > 0) {
+            container.dataset.important = 'true';
+        }
+        else if(optional.length > 0) {
+            container.dataset.important = 'false';
+        }
+        else {
+            container.dataset.important = 'none';
+        }
+
+        container.dataset.count = `${important.length}-${optional.length}`;
+        countEl.innerText = important.length + optional.length;
+    }
 }
 
 // ** Command handlers
@@ -628,6 +694,12 @@ function connect() {
             }
             if('storage' in payload.modules) {
                 updateDisks(payload.modules.storage);
+            }
+            if('restartwatcher' in payload.modules) {
+                updateRebootStatus(payload.modules.restartwatcher);
+            }
+            if('windowsupdate' in payload.modules) {
+                updateWindowsUpdateStatus(payload.modules.windowsupdate);
             }
         }
         else if (event === 'launcher_icon_update') {
