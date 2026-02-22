@@ -9,18 +9,23 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QStringList>
 
 #include <QAbstractItemView>
+#include <QComboBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include "AudioDevices.h"
 
 static constexpr const char* kPluginId = "audiodevices";
 
@@ -97,14 +102,19 @@ AudioDevicesUi::AudioDevicesUi(WaHostApi* api, QWidget* parent)
     auto* ignoredOuter = new QVBoxLayout(grpIgnored);
 
     auto* addRow = new QHBoxLayout();
-    editIgnored_ = new QLineEdit(grpIgnored);
-    editIgnored_->setPlaceholderText("Type a device name substring to ignore (e.g. \"Virtual\")");
+    comboIgnored_ = new QComboBox(grpIgnored);
+    comboIgnored_->setEditable(false);
+    comboIgnored_->setSizeAdjustPolicy(QComboBox::AdjustToContentsOnFirstShow);
+    comboIgnored_->setToolTip("Select a real audio device to ignore");
     btnAddIgnored_ = new QPushButton("Add", grpIgnored);
-    addRow->addWidget(editIgnored_);
+    addRow->addWidget(comboIgnored_);
     addRow->addWidget(btnAddIgnored_);
 
     listIgnored_ = new QListWidget(grpIgnored);
     listIgnored_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    // Plain listbox look: no custom item widgets, no special effects.
+    listIgnored_->setUniformItemSizes(true);
+    listIgnored_->setWordWrap(false);
 
     auto* removeRow = new QHBoxLayout();
     btnRemoveIgnored_ = new QPushButton("Remove Selected", grpIgnored);
@@ -122,7 +132,6 @@ AudioDevicesUi::AudioDevicesUi(WaHostApi* api, QWidget* parent)
     // Wire actions
     // =====================
     connect(btnAddIgnored_, &QPushButton::clicked, this, [this]() { addIgnoredFromInput(); });
-    connect(editIgnored_, &QLineEdit::returnPressed, this, [this]() { addIgnoredFromInput(); });
     connect(btnRemoveIgnored_, &QPushButton::clicked, this, [this]() { removeSelectedIgnored(); });
 
     connect(btnSave_, &QPushButton::clicked, this, [this]() {
@@ -159,25 +168,71 @@ AudioDevicesUi::AudioDevicesUi(WaHostApi* api, QWidget* parent)
     connect(statusTimer_, &QTimer::timeout, this, [this]() { refreshStatus(); });
     statusTimer_->start(500);
 
+    devicesTimer_ = new QTimer(this);
+    connect(devicesTimer_, &QTimer::timeout, this, [this]() { refreshAvailableDevices(); });
+    devicesTimer_->start(3000);
+
     // Initial load/state
     loadFromDisk();
+    refreshAvailableDevices();
     refreshStatus();
 }
 
+void AudioDevicesUi::refreshAvailableDevices() {
+    if (!comboIgnored_) return;
+
+    const QString previous = comboIgnored_->currentText();
+
+    audiodevices::AudioDevices ad;
+    ad.init(QJsonObject{}); // ensure ignore list is empty
+    const auto devices = ad.getDevices();
+
+    QStringList names;
+    names.reserve((int)devices.size());
+    for (const auto& d : devices) {
+        const QString n = QString::fromStdWString(d.name).trimmed();
+        if (n.isEmpty()) continue;
+        if (!names.contains(n, Qt::CaseInsensitive)) names.push_back(n);
+    }
+    names.sort(Qt::CaseInsensitive);
+
+    const QSignalBlocker blocker(comboIgnored_);
+    comboIgnored_->clear();
+    comboIgnored_->addItems(names);
+
+    int idx = comboIgnored_->findText(previous, Qt::MatchFixedString);
+    if (idx >= 0) {
+        comboIgnored_->setCurrentIndex(idx);
+    } else if (comboIgnored_->count() > 0) {
+        comboIgnored_->setCurrentIndex(0);
+    }
+
+    const bool hasAny = (comboIgnored_->count() > 0);
+    comboIgnored_->setEnabled(hasAny);
+    if (btnAddIgnored_) btnAddIgnored_->setEnabled(hasAny);
+}
+
+void AudioDevicesUi::addIgnoredItem(const QString& name) {
+    if (!listIgnored_) return;
+
+    auto* item = new QListWidgetItem(name, listIgnored_);
+    item->setToolTip(name);
+}
+
 void AudioDevicesUi::addIgnoredFromInput() {
-    const QString name = editIgnored_->text().trimmed();
+    if (!comboIgnored_ || !listIgnored_) return;
+    if (comboIgnored_->currentIndex() < 0) return;
+    const QString name = comboIgnored_->currentText().trimmed();
     if (name.isEmpty()) return;
 
     // Avoid duplicates (case-insensitive)
     for (int i = 0; i < listIgnored_->count(); ++i) {
         if (listIgnored_->item(i)->text().compare(name, Qt::CaseInsensitive) == 0) {
-            editIgnored_->clear();
             return;
         }
     }
 
-    listIgnored_->addItem(name);
-    editIgnored_->clear();
+    addIgnoredItem(name);
 }
 
 void AudioDevicesUi::removeSelectedIgnored() {
@@ -223,7 +278,7 @@ void AudioDevicesUi::loadFromDisk() {
         for (const auto& x : arr) {
             if (!x.isString()) continue;
             const QString s = x.toString().trimmed();
-            if (!s.isEmpty()) listIgnored_->addItem(s);
+            if (!s.isEmpty()) addIgnoredItem(s);
         }
     }
 }

@@ -133,19 +133,19 @@ namespace audiodevices {
             PropVariantInit(&name);
             if (props) props->GetValue(PKEY_Device_FriendlyName, &name);
 
-            if (isIgnored(name.pwszVal)) {
-                continue;
-            }
+            const bool ignored = (name.vt == VT_LPWSTR && name.pwszVal && isIgnored(name.pwszVal));
 
             LPWSTR id = nullptr;
             device->GetId(&id);
 
-            devices.push_back({
-                (int) i,
-                name.pwszVal ? name.pwszVal : L"Unknown Device",
-                id ? id : L"",
-                (defaultId && id && wcscmp(defaultId, id) == 0)
-            });
+            if (!ignored) {
+                devices.push_back({
+                    (int) i,
+                    name.pwszVal ? name.pwszVal : L"Unknown Device",
+                    id ? id : L"",
+                    (defaultId && id && wcscmp(defaultId, id) == 0)
+                });
+            }
 
             if (id) CoTaskMemFree(id);
             PropVariantClear(&name);

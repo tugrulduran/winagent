@@ -1,5 +1,9 @@
 #pragma once
+
 #include <string>
+#include <unordered_set>
+#include <vector>
+
 #include <QJsonObject>
 
 struct AudioDevice {
