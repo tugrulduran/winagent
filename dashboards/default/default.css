@@ -46,6 +46,11 @@
     --status-agent-dead-color: #ccc;
 
     --critical-text-color: #ff0000;
+
+    --disk-bar-border: rgba(255, 255, 255, 0.3);
+    --disk-fill-normal: rgba(0, 247, 255, 0.7);
+    --disk-fill-warning: rgba(255, 221, 0, 0.7);
+    --disk-fill-critical: rgba(255, 47, 0, 0.7);
 }
 
 body {
@@ -274,6 +279,89 @@ body {
         flex-grow: 1;
         display: flex;
         flex-direction: row;
+
+        #disks-container {
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 10px;
+            top: 13vh;
+            width: 200px;
+            gap: 12px;
+            padding: 15px;
+            background: rgba(10, 10, 15, 0.6);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 242, 255, 0.1);
+            backdrop-filter: blur(10px);
+            max-height: 55vh;
+            overflow-y: auto;
+            z-index: 100;
+            font-family: var(--nstrfont), sans-serif;
+
+            .disk-container {
+                display: flex;
+
+                .disk-icon {
+                    width: 50px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+
+                .disk-info {
+                    flex-grow: 1;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    gap: 4px;
+
+                    .disk-name {
+                        font-family: var(--nstrfont), sans-serif;
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+
+                        gap: 4px;
+
+                        .disk-drive {
+                            color: #fff;
+                            font-size: 14px;
+                            font-weight: bold;
+                        }
+                        .disk-label {
+                            color: #aaa;
+                            font-size: 14px;
+                            flex-grow: 1;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        }
+                    }
+
+                    .disk-bar-container {
+                        height: 10px;
+                        border: 1px solid var(--disk-bar-border);
+
+                        .disk-bar {
+                            height: 100%;
+                            &[data-fill-type="critical"] {
+                                background-color: var(--disk-fill-critical);
+                            }
+                            &[data-fill-type="warning"] {
+                                background-color: var(--disk-fill-warning);
+                            }
+                            &[data-fill-type="normal"] {
+                                background-color: var(--disk-fill-normal);
+                            }
+                        }
+                    }
+
+                    .disk-size-container {
+                        font-size: 14px;
+                    }
+                }
+            }
+        }
 
         #mixer-container {
             flex-grow: 1;

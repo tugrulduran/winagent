@@ -293,6 +293,19 @@ async function ensureLauncherIcon(name, btnEl) {
     return true;
 }
 
+async function onLauncherIconResponse(res) {
+    if (!res || !res.ok || !res.name || !res.b64 || !res.mime) {
+        console.error('Invalid launcher icon response:', res);
+        return;
+    }
+
+    const dataUrl = `data:${res.mime};base64,${res.b64}`;
+    const cache = await caches.open('winagent-launcher-icons');
+    const key = `launcher/icon/${encodeURIComponent(res.name)}`;
+
+    await cache.put(key, new Response(dataUrl, { headers: { 'Content-Type': 'text/plain' } }));
+}
+
 function updateLauncherActions(data) {
     if (!data || !data.ok) {
         return;
@@ -328,17 +341,114 @@ function updateLauncherActions(data) {
     });
 }
 
-async function onLauncherIconResponse(res) {
-    if (!res || !res.ok || !res.name || !res.b64 || !res.mime) {
-        console.error('Invalid launcher icon response:', res);
-        return;
-    }
+function updateDisks(data) {
+    if (!data || !data.ok) { return; }
 
-    const dataUrl = `data:${res.mime};base64,${res.b64}`;
-    const cache = await caches.open('winagent-launcher-icons');
-    const key = `launcher/icon/${encodeURIComponent(res.name)}`;
+    const drives = data.disks.map(d=>d.drive);
+    const existingDrives = [...document.getElementsByClassName('disk-container')].map(el => el.dataset.drive);
+    existingDrives.forEach(drive => {
+        if (!drives.includes(drive)) {
+            const el = document.querySelector(`#disks-container .disk-container[data-drive="${drive}"]`);
+            if (el) { el.remove(); }
+        }
+    });
 
-    await cache.put(key, new Response(dataUrl, { headers: { 'Content-Type': 'text/plain' } }));
+    const container = document.getElementById('disks-container');
+    data.disks.forEach(disk => {
+        const totalGB = (disk.totalBytes / 1024 / 1024 / 1024).toFixed(1);
+        const freeGB = (disk.freeBytes / 1024 / 1024 / 1024).toFixed(1);
+        const totalTB = (disk.totalBytes / 1024 / 1024 / 1024 / 1024).toFixed(1);
+        const freeTB = (disk.freeBytes / 1024 / 1024 / 1024 / 1024).toFixed(1);
+        const fTotal = totalGB > 100 ? `${totalTB} TB` : `${totalGB} GB`;
+        const fFree = freeGB > 100 ? `${freeTB} TB` : `${freeGB} GB`;
+        const percent = ((disk.freeBytes / disk.totalBytes) * 100).toFixed(2);
+        let fillType = 'normal';
+        if(percent > 90) { fillType = 'critical'; }
+        else if(percent > 70) { fillType = 'warning'; }
+
+        const existingEl = document.querySelector(`#disks-container .disk-container[data-drive="${disk.drive}"]`);
+        if(!existingEl) {
+            const diskEl = document.createElement('div');
+            diskEl.classList.add('disk-container');
+            diskEl.dataset.drive = disk.drive;
+            diskEl.dataset.label = disk.label;
+            diskEl.dataset.type = disk.type;
+            diskEl.dataset.size = disk.totalBytes;
+            diskEl.dataset.free = disk.freeBytes;
+            diskEl.dataset.fs = disk.fileSystem;
+
+            const iconEl = document.createElement('div');
+            iconEl.className = 'disk-icon';
+            iconEl.innerHTML = `<i class="${getFaDiskIconByType(disk.type)} fa-2x"></i>`;
+
+            const infoEl = document.createElement('div');
+            infoEl.className = 'disk-info';
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'disk-name';
+
+            const driveEl = document.createElement('div');
+            driveEl.className = 'disk-drive';
+            driveEl.innerText = disk.drive;
+
+            const labelEl = document.createElement('div');
+            labelEl.className = 'disk-label';
+            if(disk.label) {
+                labelEl.innerText = disk.label;
+            }
+            else if(disk.type === 'hdd' || disk.type === 'ssd') {
+                labelEl.innerText = `Local Disk (${disk.drive})`;
+            }
+            else if (disk.type === 'usb') {
+                labelEl.innerText = 'USB';
+            }
+            else {
+                labelEl.innerText = 'NO LABEL';
+            }
+            nameEl.appendChild(driveEl);
+            nameEl.appendChild(labelEl);
+
+            const barContainerEl = document.createElement('div');
+            barContainerEl.className = 'disk-bar-container';
+            const barEl = document.createElement('div');
+            barEl.className = 'disk-bar';
+            barEl.dataset.fillType = fillType;
+            barEl.dataset.percent = percent;
+            barEl.style.width = `${percent}%`;
+            barContainerEl.appendChild(barEl);
+
+            const sizeContainerEl = document.createElement('div');
+            sizeContainerEl.className = 'disk-size-container';
+            sizeContainerEl.innerText = `${fFree} free of ${fTotal}`;
+
+            infoEl.appendChild(nameEl);
+            infoEl.appendChild(barContainerEl);
+            infoEl.appendChild(sizeContainerEl);
+            diskEl.appendChild(iconEl);
+            diskEl.appendChild(infoEl);
+
+            container.appendChild(diskEl);
+        }
+        else {
+            if(disk.label !== existingEl.dataset.label) {
+                existingEl.dataset.label = disk.label;
+                existingEl.querySelector('.disk-label').innerText = disk.label;
+            }
+
+            if(disk.type !== existingEl.dataset.type) {
+                existingEl.dataset.type = disk.type;
+                existingEl.querySelector('.disk-icon').innerHTML = `<i class="${getFaDiskIconByType(disk.type)} fa-2x"></i>`;
+            }
+
+            if(disk.freeBytes !== existingEl.dataset.free || disk.totalBytes !== existingEl.dataset.size) {
+                existingEl.dataset.free = disk.free;
+                existingEl.querySelector('.disk-bar').style.width = `${percent}%`;
+                existingEl.querySelector('.disk-bar').dataset.percent = percent;
+                existingEl.querySelector('.disk-bar').dataset.fillType = fillType;
+                existingEl.querySelector('.disk-size-container').innerText = `${fFree} free of ${fTotal}`;
+            }
+        }
+    })
 }
 
 // ** Command handlers
@@ -515,6 +625,9 @@ function connect() {
                         window.launcherHash = hash;
                     }
                 });
+            }
+            if('storage' in payload.modules) {
+                updateDisks(payload.modules.storage);
             }
         }
         else if (event === 'launcher_icon_update') {
