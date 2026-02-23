@@ -58,6 +58,13 @@
 
     --update-important-color: #f00;
     --update-optional-color: rgba(255, 170, 0, 0.34);
+
+    --android-calling-background-color: #00ff04;
+    --android-calling-color: #000;
+    --android-missed-calls-color: #ff0000;
+    --android-notifications-color: #ff8c18;
+    --android-whatsapp-color: #25d366;
+    --android-not-connected-color: rgba(255, 0, 0, 0.42);
 }
 
 body {
@@ -797,6 +804,88 @@ body {
                 box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
                 z-index: 1000;
                 transition: all 0.4s ease;
+
+                position: relative;
+
+                .android-container {
+                    position: absolute;
+                    top: -40px;
+                    width: calc(100% - 40px);
+
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 10px;
+
+                    .missed-calls-container {
+                        width: 20%;
+                        display: flex;
+                        justify-content: flex-start;
+
+                        #android-missed-calls {
+                            display: none;
+                            justify-content: flex-start;
+                            align-items: center;
+                            color: var(--android-missed-calls-color);
+
+                            #android-missed-call-count {
+                                font-size: 20px;
+                            }
+                        }
+                    }
+                    .call-container {
+                        width: 60%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+
+                        #android-not-connected {
+                            display: none;
+                            justify-content: center;
+                            align-items: center;
+                            color: var(--android-not-connected-color);
+                        }
+
+                        #android-calling {
+                            display: none;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 10px;
+                            background-color: var(--android-calling-background-color);
+                            color: var(--android-calling-color);
+                            padding: 5px 10px;
+                            border-radius: 10px;
+                        }
+                    }
+                    .notifications-container {
+                        width: 20%;
+                        display: flex;
+                        justify-content: flex-end;
+
+                        #android-whatsapp-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-whatsapp-color);
+                            padding-right: 20px;
+
+                            #android-whatsapp-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                        #android-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-notifications-color);
+
+                            #android-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                    }
+                }
 
                 &.paused {
                     border-color: var(--accent-dull);

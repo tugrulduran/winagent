@@ -1,0 +1,7 @@
+{
+  "intervalMs": 1000,
+  "discoveryPort": 45151,
+  "port": 45152,
+  "connectedTimeoutMs": 30000,
+  "token": ""
+}

@@ -580,6 +580,50 @@ function updateDockerStatus(data) {
     });
 }
 
+function updateAndroidData(data) {
+    if (!data || !data.ok) { return; }
+
+    const missedCalls = data.missedCalls;
+    const notifications = data.notifications.filter(notif => notif.package !== 'com.winagent.bridge');
+    const regexFilter = /^[^|]+\|com\.whatsapp\|[^|]+\|null\|[^|]+$/;
+    const whatsapp = data.notifications.filter(notif => regexFilter.test(notif.id));
+    const allWhatsappNotifications = data.notifications.filter(notif => notif.package === 'com.whatsapp');
+
+    const othernotificationCount = notifications.length - allWhatsappNotifications.length;
+
+    if (data.phoneRinging) {
+        document.getElementById('android-calling-number').innerText = data.callFrom;
+        document.getElementById('android-calling').style.display = 'flex';
+    }
+    else {
+        document.getElementById('android-calling').style.display = 'none';
+    }
+
+    if (missedCalls.length > 0) {
+        document.getElementById('android-missed-call-count').innerText = missedCalls.length;
+        document.getElementById('android-missed-calls').style.display = 'flex';
+    }
+    else {
+        document.getElementById('android-missed-calls').style.display = 'none';
+    }
+
+    if (othernotificationCount > 0) {
+        document.getElementById('android-notification-count').innerText = othernotificationCount;
+        document.getElementById('android-notifications').style.display = 'flex';
+    }
+    else {
+        document.getElementById('android-notifications').style.display = 'none';
+    }
+
+    if (whatsapp.length > 0) {
+        document.getElementById('android-whatsapp-notification-count').innerText = whatsapp.length;
+        document.getElementById('android-whatsapp-notifications').style.display = 'flex';
+    }
+    else {
+        document.getElementById('android-whatsapp-notifications').style.display = 'none';
+    }
+}
+
 // ** Command handlers
 
 function callRequest(module, payload) {
@@ -769,6 +813,9 @@ function connect() {
                     return;
                 }
                 updateDockerStatus(payload.modules.docker);
+            }
+            if ('android' in payload.modules) {
+                updateAndroidData(payload.modules.android);
             }
         }
         else if (event === 'launcher_icon_update') {
