@@ -400,6 +400,7 @@ These are **done and included in the repo**:
 - 🗄️ **storage** — disk usage & info per drive
 - ‼️️ **windowsupdate** — Windows update info
 - 🔄 **restartwatcher** — restart watcher
+- 📲 **android** — Android notifications and calls
 
 ### 🗂️ Plugin config examples
 
@@ -477,6 +478,7 @@ Planned new plugins:
 - [ ] ~~cancelled Sensor data (CPU, GPU temperatures)~~
 - [x] ~~Windows updates & Restart status~~
 - [x] ~~Disk usage & info per drive~~
+- [x] ~~Android notifications and calls~~
 - [ ] Bluetooth devices
 - [x] ~~Docker container info~~
 - [ ] Audio profiles for gamers
