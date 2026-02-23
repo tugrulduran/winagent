@@ -344,7 +344,7 @@ function updateLauncherActions(data) {
 function updateDisks(data) {
     if (!data || !data.ok) { return; }
 
-    const drives = data.disks.map(d=>d.drive);
+    const drives = data.disks.map(d => d.drive);
     const existingDrives = [...document.getElementsByClassName('disk-container')].map(el => el.dataset.drive);
     existingDrives.forEach(drive => {
         if (!drives.includes(drive)) {
@@ -364,11 +364,11 @@ function updateDisks(data) {
         const fFree = freeGB > 100 ? `${freeTB} TB` : `${freeGB} GB`;
         const percent = ((usedBytes / disk.totalBytes) * 100).toFixed(2);
         let fillType = 'normal';
-        if(percent > 90) { fillType = 'critical'; }
-        else if(percent > 70) { fillType = 'warning'; }
+        if (percent > 90) { fillType = 'critical'; }
+        else if (percent > 70) { fillType = 'warning'; }
 
         const existingEl = document.querySelector(`#disks-container .disk-container[data-drive="${disk.drive}"]`);
-        if(!existingEl) {
+        if (!existingEl) {
             const diskEl = document.createElement('div');
             diskEl.classList.add('disk-container');
             diskEl.dataset.drive = disk.drive;
@@ -381,22 +381,22 @@ function updateDisks(data) {
             const iconEl = document.createElement('div');
             iconEl.className = 'disk-icon';
             const iconImg = document.createElement('img');
-            if(disk.drive === 'C:') {
+            if (disk.drive === 'C:') {
                 iconImg.src = 'files/icons/c-drive.png';
             }
-            else if(disk.type === 'HDD') {
+            else if (disk.type === 'HDD') {
                 iconImg.src = 'files/icons/hdd.png';
             }
-            else if(disk.type === 'SSD') {
+            else if (disk.type === 'SSD') {
                 iconImg.src = 'files/icons/ssd.png';
             }
-            else if(disk.type === 'USB') {
+            else if (disk.type === 'USB') {
                 iconImg.src = 'files/icons/flashdrive.png';
             }
-            else if(disk.type === 'CDROM') {
+            else if (disk.type === 'CDROM') {
                 iconImg.src = 'files/icons/cdrom.png';
             }
-            else if(disk.type === 'Network') {
+            else if (disk.type === 'Network') {
                 iconImg.src = 'files/icons/network-drive.png';
             }
             else {
@@ -416,10 +416,10 @@ function updateDisks(data) {
 
             const labelEl = document.createElement('div');
             labelEl.className = 'disk-label';
-            if(disk.label) {
+            if (disk.label) {
                 labelEl.innerText = disk.label;
             }
-            else if(disk.type === 'hdd' || disk.type === 'ssd') {
+            else if (disk.type === 'hdd' || disk.type === 'ssd') {
                 labelEl.innerText = `Local Disk (${disk.drive})`;
             }
             else if (disk.type === 'usb') {
@@ -453,17 +453,17 @@ function updateDisks(data) {
             container.appendChild(diskEl);
         }
         else {
-            if(disk.label !== existingEl.dataset.label) {
+            if (disk.label !== existingEl.dataset.label) {
                 existingEl.dataset.label = disk.label;
                 existingEl.querySelector('.disk-label').innerText = disk.label;
             }
 
-            if(disk.type !== existingEl.dataset.type) {
+            if (disk.type !== existingEl.dataset.type) {
                 existingEl.dataset.type = disk.type;
                 existingEl.querySelector('.disk-icon').innerHTML = `<i class="${getFaDiskIconByType(disk.type)} fa-2x"></i>`;
             }
 
-            if(`${disk.freeBytes}` !== existingEl.dataset.free || `${disk.totalBytes}` !== existingEl.dataset.size) {
+            if (`${disk.freeBytes}` !== existingEl.dataset.free || `${disk.totalBytes}` !== existingEl.dataset.size) {
                 existingEl.dataset.free = disk.freeBytes;
                 existingEl.querySelector('.disk-bar').style.width = `${percent}%`;
                 existingEl.querySelector('.disk-bar').dataset.percent = percent;
@@ -471,11 +471,11 @@ function updateDisks(data) {
                 existingEl.querySelector('.disk-size-container').innerText = `${fFree} free of ${fTotal}`;
             }
         }
-    })
+    });
 }
 
 function updateRebootStatus(data) {
-    if(!data || !data.ok) { return; }
+    if (!data || !data.ok) { return; }
 
     const flags = data.flags;
     const required = data.required;
@@ -483,10 +483,10 @@ function updateRebootStatus(data) {
 
     const icon = document.getElementById('reboot-icon');
 
-    if(required && (flags.windowsUpdate || flags.cbsPending)) {
+    if (required && (flags.windowsUpdate || flags.cbsPending)) {
         icon.dataset.status = 'required';
     }
-    else if(!required && recommended && (windowsUpdate || cbsPending)) {
+    else if (!required && recommended && (windowsUpdate || cbsPending)) {
         icon.dataset.status = 'recommended';
     }
     else {
@@ -495,17 +495,17 @@ function updateRebootStatus(data) {
 }
 
 function updateWindowsUpdateStatus(data) {
-    if(!data || !data.ok) { return; }
+    if (!data || !data.ok) { return; }
 
     const container = document.getElementById('windows-update-container');
     const countEl = document.getElementById('windows-update-count');
-    const optional = data.updates.filter(u => u.importance === 'optional');
-    const important = data.updates.filter(u => u.importance !== 'optional');
-    if(`${important.length}-${optional.length}` !== container.dataset.count) {
-        if(important.length > 0) {
+    const optional = data.updates.filter(u => u.importance === 'optional' || u.title.includes('Microsoft Defender Antivirus'));
+    const important = data.updates.filter(u => u.importance !== 'optional' && !u.title.includes('Microsoft Defender Antivirus'));
+    if (`${important.length}-${optional.length}` !== container.dataset.count) {
+        if (important.length > 0) {
             container.dataset.important = 'true';
         }
-        else if(optional.length > 0) {
+        else if (optional.length > 0) {
             container.dataset.important = 'false';
         }
         else {
@@ -515,6 +515,69 @@ function updateWindowsUpdateStatus(data) {
         container.dataset.count = `${important.length}-${optional.length}`;
         countEl.innerText = important.length + optional.length;
     }
+}
+
+function updateDockerStatus(data) {
+    if (!data || !data.ok) { return; }
+
+    const container = document.getElementById('docker-container');
+
+    data.stacks.forEach(stack => {
+        const existingStackEl = container.querySelector(`.docker-stack[data-name="${stack.name}"]`);
+        if (!existingStackEl) {
+            const stackEl = document.createElement('div');
+            stackEl.className = 'docker-stack';
+            stackEl.dataset.name = stack.name;
+            stackEl.dataset.status = stack.status;
+            const infoEl = document.createElement('div');
+            infoEl.className = 'stack-info';
+            const iconEl = document.createElement('i');
+            if (stack.status === 'partial') {
+                iconEl.className = 'fa-solid fa-xs fa-circle-half-stroke';
+            }
+            else {
+                iconEl.className = 'fa-solid fa-2xs fa-circle';
+            }
+            const nameEl = document.createElement('span');
+            nameEl.className = 'stack-name';
+            nameEl.innerText = stack.name;
+            infoEl.appendChild(iconEl);
+            infoEl.appendChild(nameEl);
+            stackEl.appendChild(infoEl);
+
+
+            container.appendChild(stackEl);
+        }
+        else {
+            stack.containers.forEach(container => {
+                const existingContainerEl = existingStackEl.querySelector(`.docker-container[data-name="${container.name}"]`);
+                if (!existingContainerEl) {
+                    const containerEl = document.createElement('div');
+                    containerEl.className = 'docker-container';
+                    containerEl.dataset.name = container.name;
+                    containerEl.dataset.status = stack.status === 'stopped' ? 'exited' : container.status;
+
+                    const statusEl = document.createElement('div');
+                    statusEl.className = 'status';
+                    statusEl.innerHTML = '<i class="fa-solid fa-2xs fa-circle"></i>';
+
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'name';
+                    nameEl.innerText = container.name;
+
+                    containerEl.appendChild(statusEl);
+                    containerEl.appendChild(nameEl);
+
+                    existingStackEl.appendChild(containerEl);
+                }
+                else {
+                    if (container.status !== existingContainerEl.dataset.status) {
+                        existingContainerEl.dataset.status = container.status;
+                    }
+                }
+            });
+        }
+    });
 }
 
 // ** Command handlers
@@ -692,14 +755,20 @@ function connect() {
                     }
                 });
             }
-            if('storage' in payload.modules) {
+            if ('storage' in payload.modules) {
                 updateDisks(payload.modules.storage);
             }
-            if('restartwatcher' in payload.modules) {
+            if ('restartwatcher' in payload.modules) {
                 updateRebootStatus(payload.modules.restartwatcher);
             }
-            if('windowsupdate' in payload.modules) {
+            if ('windowsupdate' in payload.modules) {
                 updateWindowsUpdateStatus(payload.modules.windowsupdate);
+            }
+            if ('docker' in payload.modules) {
+                if (isModuleLocked('docker')) {
+                    return;
+                }
+                updateDockerStatus(payload.modules.docker);
             }
         }
         else if (event === 'launcher_icon_update') {

@@ -315,93 +315,205 @@ body {
         display: flex;
         flex-direction: row;
 
-        #disks-container {
+        .mid-left-container {
             display: flex;
             flex-direction: column;
             position: fixed;
             left: 10px;
-            top: 13vh;
+            top: 11vh;
             width: 250px;
             gap: 12px;
-            padding: 15px;
-            background: rgba(10, 10, 15, 0.6);
-            border-radius: 10px;
-            border: 1px solid rgba(0, 242, 255, 0.1);
-            backdrop-filter: blur(10px);
-            max-height: 55vh;
-            overflow-y: auto;
-            z-index: 100;
-            font-family: var(--nstrfont), sans-serif;
 
-            .disk-container {
+            #docker-container {
                 display: flex;
-                flex-direction: row;
+                flex-direction: column;
                 gap: 12px;
-                opacity: 0.5;
-                &:hover { opacity: 1; }
 
-                .disk-icon {
-                    width: 50px;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-
-                    img {
-                        max-width: 100%;
-                        max-height: 100%;
-                    }
-                }
-
-                .disk-info {
-                    flex-grow: 1;
+                .docker-stack {
                     display: flex;
                     flex-direction: column;
-                    justify-content: center;
                     gap: 4px;
+                    background: rgba(10, 10, 15, 0.6);
+                    border-radius: 10px;
+                    border: 1px solid rgba(0, 242, 255, 0.1);
+                    backdrop-filter: blur(10px);
 
-                    .disk-name {
-                        font-family: var(--nstrfont), sans-serif;
+                    &[data-status='partial'] {
+                        .stack-info {
+                            i {
+                                color: rgba(42, 61, 143, 0.75);
+                            }
+                        }
+                    }
+                    &[data-status='stopped'] {
+                        .stack-info {
+                            i {
+                                color: rgba(143, 42, 42, 0.75);
+                            }
+                        }
+                    }
+                    &[data-status='running'] {
+                        .stack-info {
+                            i {
+                                color: rgba(42, 143, 55, 0.75);
+                            }
+                        }
+                    }
+
+                    .stack-info {
                         display: flex;
                         flex-direction: row;
                         align-items: center;
+                        gap: 8px;
+                        padding: 2px 6px;
+                        background: rgba(31, 31, 46, 0.6);
+                        border-top-left-radius: 10px;
+                        border-top-right-radius: 10px;
 
-                        gap: 4px;
-
-                        .disk-drive {
-                            color: #fff;
-                            font-size: 14px;
+                        .stack-name {
+                            font-size: 13px;
                             font-weight: bold;
+                            color: #fff;
                         }
-                        .disk-label {
-                            color: #aaa;
-                            font-size: 14px;
+                    }
+
+                    .docker-container {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 4px;
+                        padding-left: 12px;
+                        font-size: 14px;
+
+                        &[data-status='starting'] {
+                            .status {
+                                color: rgba(42, 104, 143, 0.75);
+                            }
+                        }
+                        &[data-status='running'] {
+                            .status {
+                                color: rgba(42, 143, 44, 0.75);
+                            }
+                        }
+                        &[data-status='exited'] {
+                            .status {
+                                color: rgba(143, 42, 42, 0.75);
+                            }
+                        }
+
+                        .status {
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+                        }
+
+                        .name {
                             flex-grow: 1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                         }
-                    }
 
-                    .disk-bar-container {
-                        height: 10px;
-                        border: 1px solid var(--disk-bar-border);
+                        .actions {
+                            display: flex;
+                            flex-direction: row;
+                            gap: 4px;
+                            align-items: center;
 
-                        .disk-bar {
-                            height: 100%;
-                            &[data-fill-type="critical"] {
-                                background-color: var(--disk-fill-critical);
-                            }
-                            &[data-fill-type="warning"] {
-                                background-color: var(--disk-fill-warning);
-                            }
-                            &[data-fill-type="normal"] {
-                                background-color: var(--disk-fill-normal);
+                            .action {
+                                padding: 4px;
                             }
                         }
                     }
+                }
 
-                    .disk-size-container {
-                        font-size: 14px;
+            }
+
+            #disks-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 15px;
+                background: rgba(10, 10, 15, 0.6);
+                border-radius: 10px;
+                border: 1px solid rgba(0, 242, 255, 0.1);
+                backdrop-filter: blur(10px);
+                max-height: 55vh;
+                overflow-y: auto;
+                z-index: 100;
+                font-family: var(--nstrfont), sans-serif;
+
+                .disk-container {
+                    display: flex;
+                    flex-direction: row;
+                    gap: 12px;
+                    opacity: 0.5;
+                    &:hover { opacity: 1; }
+
+                    .disk-icon {
+                        width: 50px;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+
+                        img {
+                            max-width: 100%;
+                            max-height: 100%;
+                        }
+                    }
+
+                    .disk-info {
+                        flex-grow: 1;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        gap: 4px;
+
+                        .disk-name {
+                            font-family: var(--nstrfont), sans-serif;
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+
+                            gap: 4px;
+
+                            .disk-drive {
+                                color: #fff;
+                                font-size: 14px;
+                                font-weight: bold;
+                            }
+                            .disk-label {
+                                color: #aaa;
+                                font-size: 14px;
+                                flex-grow: 1;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                            }
+                        }
+
+                        .disk-bar-container {
+                            height: 10px;
+                            border: 1px solid var(--disk-bar-border);
+
+                            .disk-bar {
+                                height: 100%;
+                                &[data-fill-type="critical"] {
+                                    background-color: var(--disk-fill-critical);
+                                }
+                                &[data-fill-type="warning"] {
+                                    background-color: var(--disk-fill-warning);
+                                }
+                                &[data-fill-type="normal"] {
+                                    background-color: var(--disk-fill-normal);
+                                }
+                            }
+                        }
+
+                        .disk-size-container {
+                            font-size: 14px;
+                        }
                     }
                 }
             }

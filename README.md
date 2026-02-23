@@ -396,6 +396,10 @@ These are **done and included in the repo**:
 - 🚀 **launcher** — app shortcut launcher
 - 🎵 **media** — simple media controller
 - 🔋 **audezemaxwell** — Audeze Maxwell battery info (HIDAPI)
+- 🐳 **docker** — container info
+- 🗄️ **storage** — disk usage & info per drive
+- ‼️️ **windowsupdate** — Windows update info
+- 🔄 **restartwatcher** — restart watcher
 
 ### 🗂️ Plugin config examples
 
@@ -470,11 +474,11 @@ Planned improvements:
 
 Planned new plugins:
 
-- [ ] Sensor data (CPU, GPU temperatures)
-- [ ] Windows updates & Restart status
+- [ ] ~~cancelled Sensor data (CPU, GPU temperatures)~~
+- [x] ~~Windows updates & Restart status~~
 - [x] ~~Disk usage & info per drive~~
 - [ ] Bluetooth devices
-- [ ] Docker container info / actions
+- [x] ~~Docker container info~~
 - [ ] Audio profiles for gamers
 - [ ] App / Game session tracker
 - [ ] Battery info and power plan switcher
