@@ -443,6 +443,10 @@ That file includes:
 ```bat
 cmake --build build --config Debug --target plugins
 ```
+or, for a single plugin:
+```bat
+cmake --build build --config Debug --target pluginname
+```
 
 4) Your DLL + config will land here:
 
@@ -468,6 +472,7 @@ Planned improvements:
 - [ ] 🧯 Plugin watchdog (plugin auto reset on crash/freeze)
 - [ ] 📈 Telemetry history
 - [ ] 🔔 Alerts (CPU/RAM/network threshold) + desktop notification / webhook
+- [ ] 🧩 Re-read config and auto-restart / auto-apply plugin 
 
 ---
 
@@ -520,7 +525,7 @@ MIT — see **`LICENCE.txt`**.
 ---
 
 <p align="center">
-  <sub>Made with ❤️ in C++ / Qt • Plugins welcome</sub>
+  <sub>Made with ❤️ in C++ / Qt • Plugins and ideas welcome</sub>
 </p>
 
 ---
