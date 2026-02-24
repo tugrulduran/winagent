@@ -584,12 +584,18 @@ function updateAndroidData(data) {
     if (!data || !data.ok) { return; }
 
     const missedCalls = data.missedCalls;
-    const notifications = data.notifications.filter(notif => notif.package !== 'com.winagent.bridge');
+    const notifications = data.notifications.filter(notif => {
+        if(notif.package === 'com.winagent.bridge') { return false; }
+        if(notif.package === 'com.samsung.android.dialer') { return false; }
+
+        return true;
+    });
     const regexFilter = /^[^|]+\|com\.whatsapp\|[^|]+\|null\|[^|]+$/;
     const whatsapp = data.notifications.filter(notif => regexFilter.test(notif.id));
+    const messaging = data.notifications.filter(notif => notif.package === 'com.google.android.apps.messaging');
     const allWhatsappNotifications = data.notifications.filter(notif => notif.package === 'com.whatsapp');
 
-    const othernotificationCount = notifications.length - allWhatsappNotifications.length;
+    const othernotificationCount = notifications.length - allWhatsappNotifications.length - messaging.length;
 
     if (data.phoneRinging) {
         document.getElementById('android-calling-number').innerText = data.callFrom;
@@ -621,6 +627,14 @@ function updateAndroidData(data) {
     }
     else {
         document.getElementById('android-whatsapp-notifications').style.display = 'none';
+    }
+
+    if (messaging.length > 0) {
+        document.getElementById('android-messaging-notification-count').innerText = messaging.length;
+        document.getElementById('android-messaging-notifications').style.display = 'flex';
+    }
+    else {
+        document.getElementById('android-messaging-notifications').style.display = 'none';
     }
 }
 

@@ -64,6 +64,7 @@
     --android-missed-calls-color: #ff0000;
     --android-notifications-color: #ff8c18;
     --android-whatsapp-color: #25d366;
+    --android-messaging-color: #3b5998;
     --android-not-connected-color: rgba(255, 0, 0, 0.42);
 }
 
@@ -871,6 +872,17 @@ body {
                             padding-right: 20px;
 
                             #android-whatsapp-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                        #android-messaging-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-messaging-color);
+                            padding-right: 20px;
+
+                            #android-messaging-notification-count {
                                 font-size: 20px;
                             }
                         }
