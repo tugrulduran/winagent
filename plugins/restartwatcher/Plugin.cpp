@@ -15,7 +15,7 @@ using namespace restartwatcher;
 static WaPluginInfo INFO{
     WA_PLUGIN_API_VERSION,
     "restartwatcher",
-    "restartwatcher",
+    "Restart Watcher",
     "Tracks whether Windows currently requires a restart (updates/servicing/pending operations).",
     60 * 1000
 };
