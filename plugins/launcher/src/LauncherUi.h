@@ -36,6 +36,7 @@ private:
 
     void onAddClicked(int zone);
     void onRemoveClicked();
+    void onSetIconClicked();
     void onZoneSelectionChanged(int zone);
 
     void refreshStatus();
@@ -52,6 +53,7 @@ private:
     std::array<ZoneListWidget*, 5> zoneLists_{};
 
     QPushButton* btnRemove_ = nullptr;
+    QPushButton* btnSetIcon_ = nullptr;
     QPushButton* btnSave_ = nullptr;
 
     QTimer* statusTimer_ = nullptr;
