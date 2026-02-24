@@ -13,13 +13,15 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
+#include <QComboBox>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include "NetworkSampler.h"
 
 static constexpr const char* kPluginId = "basicnetwork";
 
@@ -96,10 +98,11 @@ BasicNetworkUi::BasicNetworkUi(WaHostApi* api, QWidget* parent)
     auto* ifacesOuter = new QVBoxLayout(grpIfaces);
 
     auto* addRow = new QHBoxLayout();
-    editIface_ = new QLineEdit(grpIfaces);
-    editIface_->setPlaceholderText("e.g. Ethernet, Wi-Fi, Intel(R) ...");
+    comboIface_ = new QComboBox(grpIfaces);
+    comboIface_->setEditable(false);
+    comboIface_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     btnAddIface_ = new QPushButton("Add", grpIfaces);
-    addRow->addWidget(editIface_);
+    addRow->addWidget(comboIface_);
     addRow->addWidget(btnAddIface_);
 
     listIfaces_ = new QListWidget(grpIfaces);
@@ -120,8 +123,7 @@ BasicNetworkUi::BasicNetworkUi(WaHostApi* api, QWidget* parent)
     // =====================
     // Wire actions
     // =====================
-    connect(btnAddIface_, &QPushButton::clicked, this, [this]() { addInterfaceFromInput(); });
-    connect(editIface_, &QLineEdit::returnPressed, this, [this]() { addInterfaceFromInput(); });
+    connect(btnAddIface_, &QPushButton::clicked, this, [this]() { addInterfaceFromCombo(); });
     connect(btnRemoveIface_, &QPushButton::clicked, this, [this]() { removeSelectedInterfaces(); });
 
     connect(btnSave_, &QPushButton::clicked, this, [this]() {
@@ -158,25 +160,75 @@ BasicNetworkUi::BasicNetworkUi(WaHostApi* api, QWidget* parent)
     connect(statusTimer_, &QTimer::timeout, this, [this]() { refreshStatus(); });
     statusTimer_->start(500);
 
+    ifacesTimer_ = new QTimer(this);
+    connect(ifacesTimer_, &QTimer::timeout, this, [this]() { refreshInterfaceChoices(); });
+    ifacesTimer_->start(3000);
+
     // Initial load/state
     loadFromDisk();
+    refreshInterfaceChoices();
     refreshStatus();
 }
 
-void BasicNetworkUi::addInterfaceFromInput() {
-    const QString name = editIface_->text().trimmed();
-    if (name.isEmpty()) return;
+void BasicNetworkUi::refreshInterfaceChoices() {
+    if (!comboIface_) return;
+
+    // Preserve selection if possible
+    const QString prev = comboIface_->currentData(Qt::UserRole).toString();
+
+    comboIface_->blockSignals(true);
+    comboIface_->clear();
+    comboIface_->addItem("Select an interface...", QString());
+
+#ifdef _WIN32
+    const auto ifaces = basicnetwork::NetworkSampler::enumeratePhysicalInterfaces();
+    for (const auto& iface : ifaces) {
+        const QString alias = QString::fromStdWString(iface.name).trimmed();
+        const QString guid = QString::fromStdWString(iface.guid).trimmed();
+        const QString descr = QString::fromStdWString(iface.description).trimmed();
+        if (alias.isEmpty()) continue;
+        // Store alias as userData for readability (sampler accepts alias or GUID).
+        comboIface_->addItem(alias, alias);
+        const int idx = comboIface_->count() - 1;
+        QString tip;
+        if (!descr.isEmpty()) tip = descr;
+        if (!guid.isEmpty()) tip += (tip.isEmpty() ? QString() : QString("\n")) + QString("GUID: %1").arg(guid);
+        if (!tip.isEmpty()) comboIface_->setItemData(idx, tip, Qt::ToolTipRole);
+    }
+#endif
+
+    // Restore selection
+    int restoreIdx = -1;
+    if (!prev.isEmpty()) {
+        for (int i = 1; i < comboIface_->count(); ++i) {
+            if (comboIface_->itemData(i, Qt::UserRole).toString() == prev) {
+                restoreIdx = i;
+                break;
+            }
+        }
+    }
+    comboIface_->setCurrentIndex(restoreIdx >= 0 ? restoreIdx : 0);
+    comboIface_->blockSignals(false);
+}
+
+void BasicNetworkUi::addInterfaceFromCombo() {
+    if (!comboIface_) return;
+
+    const int idx = comboIface_->currentIndex();
+    if (idx <= 0) return; // placeholder
+
+    // Save by alias (readable). update() accepts alias or GUID.
+    const QString toStore = comboIface_->currentData(Qt::UserRole).toString().trimmed();
+    if (toStore.isEmpty()) return;
 
     // Avoid duplicates (case-insensitive)
     for (int i = 0; i < listIfaces_->count(); ++i) {
-        if (listIfaces_->item(i)->text().compare(name, Qt::CaseInsensitive) == 0) {
-            editIface_->clear();
+        if (listIfaces_->item(i)->text().compare(toStore, Qt::CaseInsensitive) == 0) {
             return;
         }
     }
 
-    listIfaces_->addItem(name);
-    editIface_->clear();
+    listIfaces_->addItem(toStore);
 }
 
 void BasicNetworkUi::removeSelectedInterfaces() {

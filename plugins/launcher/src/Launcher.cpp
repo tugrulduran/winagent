@@ -5,6 +5,8 @@
 #include <QJsonArray>
 #include <QFile>
 #include <QFileInfo>
+#include <QCoreApplication>
+#include <QDir>
 #include <QStandardPaths>
 
 #include <QBuffer>
@@ -72,6 +74,16 @@ static QJsonObject iconError(const QString &msg) {
     };
 }
 
+
+static QString customIconPathForHash(const QString& hash) {
+    const QString h = hash.trimmed();
+    if (h.isEmpty()) return QString();
+
+    const QString base = QCoreApplication::applicationDirPath();
+    const QString rel = QStringLiteral("plugins/launcher/icons/%1.png").arg(h);
+    return QDir(base).filePath(rel);
+}
+
 static bool encodePng64(const QImage &img, QByteArray &outPng) {
     outPng.clear();
     if (img.isNull()) return false;
@@ -100,6 +112,34 @@ QJsonObject Launcher::getIconByName(const QString &name) const {
         }
     }
     if (!hit) return iconError("unknown app name");
+
+    // Prefer custom icon if present (plugins/launcher/icons/<hash>.png).
+    const QString customPath = customIconPathForHash(hit->hash);
+    if (!customPath.isEmpty() && QFile::exists(customPath)) {
+        QImage img(customPath);
+        if (!img.isNull()) {
+            // Ensure a consistent size (UI saves 256x256, but scale defensively).
+            if (img.width() != 256 || img.height() != 256) {
+                const int side = min(img.width(), img.height());
+                if (side > 0) {
+                    const int x = (img.width() - side) / 2;
+                    const int y = (img.height() - side) / 2;
+                    img = img.copy(x, y, side, side).scaled(256, 256, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                }
+            }
+            QByteArray png;
+            if (encodePng64(img, png)) {
+                return QJsonObject{
+                    {"event", "launcher_icon_update"},
+                    {"ok", true},
+                    {"name", hit->name},
+                    {"index", hit->index},
+                    {"mime", "image/png"},
+                    {"b64", QString::fromLatin1(png.toBase64())}
+                };
+            }
+        }
+    }
 
     QString exePath = hit->path.trimmed();
     if (exePath.isEmpty()) return iconError("missing path");

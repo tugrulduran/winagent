@@ -46,6 +46,26 @@
     --status-agent-dead-color: #ccc;
 
     --critical-text-color: #ff0000;
+
+    --disk-bar-border: rgba(255, 255, 255, 0.3);
+    --disk-fill-normal: rgba(0, 247, 255, 0.7);
+    --disk-fill-warning: rgba(255, 221, 0, 0.7);
+    --disk-fill-critical: rgba(255, 47, 0, 0.7);
+
+    --restart-required-color: #f00;
+    --restart-recommended-color: rgba(255, 200, 0, 0.5);
+    --restart-maybe-color: #222;
+
+    --update-important-color: #f00;
+    --update-optional-color: rgba(255, 170, 0, 0.34);
+
+    --android-calling-background-color: #00ff04;
+    --android-calling-color: #000;
+    --android-missed-calls-color: #ff0000;
+    --android-notifications-color: #ff8c18;
+    --android-whatsapp-color: #25d366;
+    --android-messaging-color: #3b5998;
+    --android-not-connected-color: rgba(255, 0, 0, 0.42);
 }
 
 body {
@@ -158,6 +178,34 @@ body {
                         }
                     }
 
+                    #reboot-icon {
+                        &[data-status="required"] {
+                            color: var(--restart-required-color);
+                        }
+                        &[data-status="recommended"] {
+                            color: var(--restart-recommended-color);
+                        }
+                        &[data-status="maybe"] {
+                            color: var(--restart-maybe-color);
+                        }
+                        &[data-status="none"] {
+                            display: none;
+                        }
+                    }
+
+                    #windows-update-container {
+                        font-family: var(--strfont), sans-serif;
+                        &[data-important="true"] {
+                            color: var(--update-important-color);
+                        }
+                        &[data-important="false"] {
+                            color: var(--update-optional-color);
+                        }
+                        &[data-important="none"] {
+                            display: none;
+                        }
+                    }
+
                     #local-battery {
                         display: flex;
                         flex-direction: row;
@@ -180,11 +228,11 @@ body {
                     flex-direction: row;
                     justify-content: flex-end;
 
-                    #net-dl-speed {
+                    #net-dl-speed, .net-dl-icon {
                         color: #afa;
                     }
 
-                    #net-ul-speed {
+                    #net-ul-speed, .net-ul-icon {
                         color: #faa;
                     }
                 }
@@ -274,6 +322,210 @@ body {
         flex-grow: 1;
         display: flex;
         flex-direction: row;
+
+        .mid-left-container {
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 10px;
+            top: 11vh;
+            width: 250px;
+            gap: 12px;
+
+            #docker-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+
+                .docker-stack {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    background: rgba(10, 10, 15, 0.6);
+                    border-radius: 10px;
+                    border: 1px solid rgba(0, 242, 255, 0.1);
+                    backdrop-filter: blur(10px);
+
+                    &[data-status='partial'] {
+                        .stack-info {
+                            i {
+                                color: rgba(42, 61, 143, 0.75);
+                            }
+                        }
+                    }
+                    &[data-status='stopped'] {
+                        .stack-info {
+                            i {
+                                color: rgba(143, 42, 42, 0.75);
+                            }
+                        }
+                    }
+                    &[data-status='running'] {
+                        .stack-info {
+                            i {
+                                color: rgba(42, 143, 55, 0.75);
+                            }
+                        }
+                    }
+
+                    .stack-info {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 2px 6px;
+                        background: rgba(31, 31, 46, 0.6);
+                        border-top-left-radius: 10px;
+                        border-top-right-radius: 10px;
+
+                        .stack-name {
+                            font-size: 13px;
+                            font-weight: bold;
+                            color: #fff;
+                        }
+                    }
+
+                    .docker-container {
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 4px;
+                        padding-left: 12px;
+                        font-size: 14px;
+
+                        &[data-status='starting'] {
+                            .status {
+                                color: rgba(42, 104, 143, 0.75);
+                            }
+                        }
+                        &[data-status='running'] {
+                            .status {
+                                color: rgba(42, 143, 44, 0.75);
+                            }
+                        }
+                        &[data-status='exited'] {
+                            .status {
+                                color: rgba(143, 42, 42, 0.75);
+                            }
+                        }
+
+                        .status {
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+                        }
+
+                        .name {
+                            flex-grow: 1;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        }
+
+                        .actions {
+                            display: flex;
+                            flex-direction: row;
+                            gap: 4px;
+                            align-items: center;
+
+                            .action {
+                                padding: 4px;
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            #disks-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 15px;
+                background: rgba(10, 10, 15, 0.6);
+                border-radius: 10px;
+                border: 1px solid rgba(0, 242, 255, 0.1);
+                backdrop-filter: blur(10px);
+                max-height: 55vh;
+                overflow-y: auto;
+                z-index: 100;
+                font-family: var(--nstrfont), sans-serif;
+
+                .disk-container {
+                    display: flex;
+                    flex-direction: row;
+                    gap: 12px;
+                    opacity: 0.5;
+                    &:hover { opacity: 1; }
+
+                    .disk-icon {
+                        width: 50px;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+
+                        img {
+                            max-width: 100%;
+                            max-height: 100%;
+                        }
+                    }
+
+                    .disk-info {
+                        flex-grow: 1;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        gap: 4px;
+
+                        .disk-name {
+                            font-family: var(--nstrfont), sans-serif;
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+
+                            gap: 4px;
+
+                            .disk-drive {
+                                color: #fff;
+                                font-size: 14px;
+                                font-weight: bold;
+                            }
+                            .disk-label {
+                                color: #aaa;
+                                font-size: 14px;
+                                flex-grow: 1;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                            }
+                        }
+
+                        .disk-bar-container {
+                            height: 10px;
+                            border: 1px solid var(--disk-bar-border);
+
+                            .disk-bar {
+                                height: 100%;
+                                &[data-fill-type="critical"] {
+                                    background-color: var(--disk-fill-critical);
+                                }
+                                &[data-fill-type="warning"] {
+                                    background-color: var(--disk-fill-warning);
+                                }
+                                &[data-fill-type="normal"] {
+                                    background-color: var(--disk-fill-normal);
+                                }
+                            }
+                        }
+
+                        .disk-size-container {
+                            font-size: 14px;
+                        }
+                    }
+                }
+            }
+        }
 
         #mixer-container {
             flex-grow: 1;
@@ -553,6 +805,99 @@ body {
                 box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
                 z-index: 1000;
                 transition: all 0.4s ease;
+
+                position: relative;
+
+                .android-container {
+                    position: absolute;
+                    top: -40px;
+                    width: calc(100% - 40px);
+
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 10px;
+
+                    .missed-calls-container {
+                        width: 20%;
+                        display: flex;
+                        justify-content: flex-start;
+
+                        #android-missed-calls {
+                            display: none;
+                            justify-content: flex-start;
+                            align-items: center;
+                            color: var(--android-missed-calls-color);
+
+                            #android-missed-call-count {
+                                font-size: 20px;
+                            }
+                        }
+                    }
+                    .call-container {
+                        width: 60%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+
+                        #android-not-connected {
+                            display: none;
+                            justify-content: center;
+                            align-items: center;
+                            color: var(--android-not-connected-color);
+                        }
+
+                        #android-calling {
+                            display: none;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 10px;
+                            background-color: var(--android-calling-background-color);
+                            color: var(--android-calling-color);
+                            padding: 5px 10px;
+                            border-radius: 10px;
+                        }
+                    }
+                    .notifications-container {
+                        width: 20%;
+                        display: flex;
+                        justify-content: flex-end;
+
+                        #android-whatsapp-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-whatsapp-color);
+                            padding-right: 20px;
+
+                            #android-whatsapp-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                        #android-messaging-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-messaging-color);
+                            padding-right: 20px;
+
+                            #android-messaging-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                        #android-notifications {
+                            display: none;
+                            justify-content: flex-end;
+                            align-items: center;
+                            color: var(--android-notifications-color);
+
+                            #android-notification-count {
+                                font-size: 20px;
+                            }
+                        }
+                    }
+                }
 
                 &.paused {
                     border-color: var(--accent-dull);

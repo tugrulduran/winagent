@@ -6,7 +6,7 @@
 
 class QLabel;
 class QListWidget;
-class QLineEdit;
+class QComboBox;
 class QSpinBox;
 class QPushButton;
 class QTimer;
@@ -25,6 +25,9 @@ private:
     bool saveToDisk();
     void refreshStatus();
 
+    void refreshAvailableDevices();
+
+    void addIgnoredItem(const QString& name);
     void addIgnoredFromInput();
     void removeSelectedIgnored();
 
@@ -41,10 +44,11 @@ private:
     QPushButton* btnSave_ = nullptr;
 
     // ignoredDevices
-    QLineEdit* editIgnored_ = nullptr;
+    QComboBox* comboIgnored_ = nullptr;
     QPushButton* btnAddIgnored_ = nullptr;
     QPushButton* btnRemoveIgnored_ = nullptr;
     QListWidget* listIgnored_ = nullptr;
 
     QTimer* statusTimer_ = nullptr;
+    QTimer* devicesTimer_ = nullptr;
 };

@@ -15,6 +15,7 @@
 #include <QFileDialog>
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QImage>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -442,9 +443,12 @@ LauncherUi::LauncherUi(WaHostApi *api, QWidget *parent)
     settingsLayout->addWidget(spinInterval_);
     settingsLayout->addStretch(1);
     btnRemove_ = new QPushButton("Remove", this);
+    btnSetIcon_ = new QPushButton("Set Icon", this);
     btnSave_ = new QPushButton("Save", this);
     btnRemove_->setEnabled(false);
+    btnSetIcon_->setEnabled(false);
     settingsLayout->addWidget(btnRemove_);
+    settingsLayout->addWidget(btnSetIcon_);
     settingsLayout->addWidget(btnSave_);
 
     root->addWidget(grpSettings);
@@ -509,6 +513,8 @@ LauncherUi::LauncherUi(WaHostApi *api, QWidget *parent)
 
     connect(btnRemove_, &QPushButton::clicked, this, [this]() { onRemoveClicked(); });
 
+    connect(btnSetIcon_, &QPushButton::clicked, this, [this]() { onSetIconClicked(); });
+
     connect(btnSave_, &QPushButton::clicked, this, [this]() {
         if (!saveToDisk()) return;
         if (api_ && api_->plugin_restart) api_->plugin_restart(api_->user, kPluginId);
@@ -558,6 +564,7 @@ void LauncherUi::clearAllZones() {
     }
     selectedZone_ = -1;
     btnRemove_->setEnabled(false);
+    if (btnSetIcon_) btnSetIcon_->setEnabled(false);
 }
 
 static QListWidgetItem *makeAddItem(ZoneListWidget *list) {
@@ -676,6 +683,73 @@ void LauncherUi::onRemoveClicked() {
 
     selectedZone_ = -1;
     btnRemove_->setEnabled(false);
+    if (btnSetIcon_) btnSetIcon_->setEnabled(false);
+}
+
+
+void LauncherUi::onSetIconClicked() {
+    if (selectedZone_ < 1 || selectedZone_ > 4) return;
+
+    auto *list = zoneLists_[selectedZone_];
+    if (!list) return;
+
+    const auto selected = list->selectedItems();
+    if (selected.isEmpty()) return;
+
+    auto *it = selected.first();
+    if (!it) return;
+
+    QJsonObject data = getItemData(it);
+    if (data.value("isAdd").toBool()) return;
+
+    const QString hash = data.value("hash").toString();
+    if (hash.trimmed().isEmpty()) {
+        QMessageBox::warning(this, "Launcher", "Selected item has no hash; cannot store icon.");
+        return;
+    }
+
+    const QString startDir = QDir::homePath();
+    const QString file = QFileDialog::getOpenFileName(
+        this, "Select PNG icon", startDir, "PNG Images (*.png);;All Files (*.*)"
+    );
+    if (file.isEmpty()) return;
+
+    QImage img(file);
+    if (img.isNull()) {
+        QMessageBox::warning(this, "Launcher", "Failed to load PNG.\n" + file);
+        return;
+    }
+
+    const int side = std::min(img.width(), img.height());
+    if (side <= 0) {
+        QMessageBox::warning(this, "Launcher", "Invalid image size.");
+        return;
+    }
+
+    const int x = (img.width() - side) / 2;
+    const int y = (img.height() - side) / 2;
+
+    QImage cropped = img.copy(x, y, side, side);
+    QImage scaled = cropped.scaled(256, 256, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+    if (scaled.format() != QImage::Format_ARGB32 && scaled.format() != QImage::Format_ARGB32_Premultiplied) {
+        scaled = scaled.convertToFormat(QImage::Format_ARGB32);
+    }
+
+    const QString iconsDirPath = getIconsDir(configPath());
+    QDir().mkpath(iconsDirPath);
+    const QString iconPath = QDir(iconsDirPath).filePath(hash + ".png");
+
+    if (!scaled.save(iconPath, "PNG")) {
+        QMessageBox::warning(this, "Launcher", "Failed to save PNG.\n" + iconPath);
+        return;
+    }
+
+    it->setIcon(QIcon(iconPath));
+
+    data["icon"] = hash + ".png";
+    data["iconPath"] = iconPath;
+    setItemData(it, data);
 }
 
 void LauncherUi::onZoneSelectionChanged(int zone) {
@@ -689,6 +763,7 @@ void LauncherUi::onZoneSelectionChanged(int zone) {
         if (selectedZone_ == zone) {
             selectedZone_ = -1;
             btnRemove_->setEnabled(false);
+            if (btnSetIcon_) btnSetIcon_->setEnabled(false);
         }
         return;
     }
@@ -702,6 +777,7 @@ void LauncherUi::onZoneSelectionChanged(int zone) {
         suppressSelection_ = false;
         selectedZone_ = -1;
         btnRemove_->setEnabled(false);
+        if (btnSetIcon_) btnSetIcon_->setEnabled(false);
         return;
     }
 
@@ -714,6 +790,8 @@ void LauncherUi::onZoneSelectionChanged(int zone) {
 
     selectedZone_ = zone;
     btnRemove_->setEnabled(true);
+    if (btnSetIcon_) btnSetIcon_->setEnabled(true);
+
 }
 
 void LauncherUi::loadFromDisk() {
@@ -886,4 +964,5 @@ void LauncherUi::refreshStatus() {
         }
     }
     btnRemove_->setEnabled(canRemove);
+    if (btnSetIcon_) btnSetIcon_->setEnabled(canRemove);
 }

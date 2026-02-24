@@ -6,7 +6,7 @@
 
 class QLabel;
 class QListWidget;
-class QLineEdit;
+class QComboBox;
 class QSpinBox;
 class QPushButton;
 class QTimer;
@@ -25,7 +25,9 @@ private:
     bool saveToDisk();
     void refreshStatus();
 
-    void addInterfaceFromInput();
+    void refreshInterfaceChoices();
+
+    void addInterfaceFromCombo();
     void removeSelectedInterfaces();
 
     WaHostApi* api_ = nullptr;
@@ -41,10 +43,11 @@ private:
     QPushButton* btnSave_ = nullptr;
 
     // Allowed interfaces
-    QLineEdit* editIface_ = nullptr;
+    QComboBox* comboIface_ = nullptr;
     QPushButton* btnAddIface_ = nullptr;
     QPushButton* btnRemoveIface_ = nullptr;
     QListWidget* listIfaces_ = nullptr;
 
     QTimer* statusTimer_ = nullptr;
+    QTimer* ifacesTimer_ = nullptr;
 };

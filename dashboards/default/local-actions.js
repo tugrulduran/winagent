@@ -232,6 +232,10 @@ function getMediaSourceByTypeId(id) {
     }
 }
 
+function getFaDiskIconByType(type) {
+    return 'fa-regular fa-hard-drive';
+}
+
 
 document.getElementById('stopwatch-value').addEventListener('pointerdown', toggleStopwatch);
 document.getElementById('stopwatch-reset').addEventListener('pointerdown', resetStopwatch);

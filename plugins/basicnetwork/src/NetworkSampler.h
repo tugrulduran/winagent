@@ -1,7 +1,11 @@
 #pragma once
+
 #include <cstdint>
-#include <string>
 #include <map>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 #include <QJsonObject>
 
 struct InterfaceData {
@@ -21,6 +25,10 @@ struct TrafficSnap {
 namespace basicnetwork {
     class NetworkSampler {
     public:
+        // Enumerates physical network interfaces (Ethernet/Wi-Fi) similarly to update(),
+        // but without traffic/speed calculation and without applying allowedInterfaces.
+        static std::vector<InterfaceData> enumeratePhysicalInterfaces();
+
         std::map<std::wstring, InterfaceData> update();
 
         void init(QJsonObject config);
